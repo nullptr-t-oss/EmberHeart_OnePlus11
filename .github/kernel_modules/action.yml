@@ -368,6 +368,7 @@ runs:
           CONFIG_CNSS_KIWI_V2=y \
           MODNAME=kiwi_v2 \
           CONFIG_QCA_CLD_WLAN_PROFILE=kiwi_v2 \
+          KCFLAGS="-DCFG80211_SINGLE_NETDEV_MULTI_LINK_SUPPORT" \
           KBUILD_EXTRA_SYMBOLS="$WLAN_ROOT/platform/Module.symvers" \
           KBUILD_MIXED_TREE=$KERNEL_MIXED_TREE \
           CONFIG_BUILD_TAG=n \
