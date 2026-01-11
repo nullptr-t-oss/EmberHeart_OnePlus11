@@ -319,15 +319,81 @@ runs:
         make -j$(nproc --all) ARCH=arm64 LLVM=1 O=out CC="ccache clang" modules       
         make -j$(nproc --all) ARCH=arm64 LLVM=1 O=out INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
         
-        #echo "Building out of tree external kernel modules..."
-        #cd "$KERNEL_PLATFORM"
-        #QCA_WLAN_DIR="$GITHUB_WORKSPACE/$CONFIG/vendor/qcom/opensource/wlan/qcacld-3.0/"
+        echo "Building out of tree external kernel modules..."
         
-        #cd "$MSM"
-        #make -C ../../vendor/qcom/opensource/datarmnet-ext/aps M=../../vendor/qcom/opensource/datarmnet-ext/aps KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$OUT LLVM=1 DEPMOD=depmod DTC=$KERNEL_PLATFORM/build/kernel/build-tools/path/linux-x86/dtc RMNET_CORE_INC_DIR=$CONFIG/vendor/qcom/opensource/datarmnet/core RMNET_CORE_PATH=vendor/qcom/opensource/datarmnet/core DATARMNET_CORE_PATH=datarmnet/core ANDROID_BUILD_TOP=$CONFIG KBUILD_MIXED_TREE=..//device/qcom/kalama-kernel
+        ARGS="ARCH=arm64 LLVM=1"
+
+        WLAN_ROOT="$GITHUB_WORKSPACE/$CONFIG/vendor/qcom/opensource/wlan"
+        KERNEL_MIXED_TREE="$KERNEL_PLATFORM/msm-kernel/out"
         
-        #make -C ../../vendor/qcom/opensource/wlan/platform M=../../vendor/qcom/opensource/wlan/platform KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$OUT LLVM=1 DEPMOD=depmod DTC=$KERNEL_PLATFORM/build/kernel/build-tools/path/linux-x86/dtc WLAN_PLATFORM_ROOT=$CONFIG/vendor/qcom/opensource/wlan/platform HAVE_ARCH_COMPILER_H=y CONFIG_CNSS_OUT_OF_TREE=y CONFIG_CNSS2=m CONFIG_CNSS2_QMI=y CONFIG_CNSS_QMI_SVC=m CONFIG_CNSS_PLAT_IPC_QMI_SVC=m CONFIG_CNSS_GENL=m CONFIG_WCNSS_MEM_PRE_ALLOC=m CONFIG_CNSS_UTILS=m CONFIG_BUS_AUTO_SUSPEND=y CONFIG_CNSS_HW_SECURE_DISABLE=y KERNEL_SUPPORTS_NESTED_COMPOSITES=n KBUILD_EXTRA_SYMBOLS=$OUT/sec-module-symvers_intermediates/Module.symvers ANDROID_BUILD_TOP=$CONFIG KBUILD_MIXED_TREE=..//device/qcom/kalama-kernel
-        
+        echo "Building CNSS2 (Platform Driver)..."
+        make -C "$KERNEL_MIXED_TREE" \
+          M="$WLAN_ROOT/platform" \
+          KERNEL_SRC=$KERNEL_PLATFORM/msm-kernel \
+          $ARGS \
+          DEPMOD=depmod \
+          DTC=$KERNEL_PLATFORM/build/kernel/build-tools/path/linux-x86/dtc \
+          WLAN_PLATFORM_ROOT=$WLAN_ROOT/platform \
+          KCFLAGS="-I$WLAN_ROOT/platform/inc" \
+          CONFIG_CNSS_OUT_OF_TREE=y \
+          CONFIG_CNSS2=m \
+          CONFIG_ICNSS2=m \
+          CONFIG_CNSS2_QMI=y \
+          CONFIG_ICNSS2_QMI=y \
+          CONFIG_CNSS_QMI_SVC=m \
+          CONFIG_CNSS_PLAT_IPC_QMI_SVC=m \
+          CONFIG_CNSS_GENL=m \
+          CONFIG_WCNSS_MEM_PRE_ALLOC=m \
+          CONFIG_CNSS_UTILS=m \
+          CONFIG_CNSS2_SSR_DRIVER_DUMP=y \
+          KBUILD_MIXED_TREE=$KERNEL_MIXED_TREE \
+          modules
+
+        echo "Building QCACLD3 (WLAN Driver)..."
+        make -C "$KERNEL_MIXED_TREE" \
+          M="$WLAN_ROOT/qcacld-3.0" \
+          KERNEL_SRC=$KERNEL_PLATFORM/msm-kernel \
+          $ARGS \
+          DEPMOD=depmod \
+          DTC=$KERNEL_PLATFORM/build/kernel/build-tools/path/linux-x86/dtc \
+          WLAN_ROOT=$WLAN_ROOT/qcacld-3.0 \
+          WLAN_COMMON_ROOT=../qca-wifi-host-cmn \
+          WLAN_PLATFORM_ROOT=$WLAN_ROOT/platform \
+          HAVE_ARCH_COMPILER_H=y \
+          CONFIG_QCA_CLD_WLAN=m \
+          CONFIG_CNSS_OUT_OF_TREE=y \
+          CONFIG_CNSS2=y \
+          CONFIG_WLAN_FEATURE_11BE=y \
+          CONFIG_BERYLLIUM=y \
+          CONFIG_CNSS_KIWI_V2=y \
+          MODNAME=kiwi_v2 \
+          CONFIG_QCA_CLD_WLAN_PROFILE=kiwi_v2 \
+          KBUILD_EXTRA_SYMBOLS="$WLAN_ROOT/platform/Module.symvers" \
+          KBUILD_MIXED_TREE=$KERNEL_MIXED_TREE \
+          CONFIG_BUILD_TAG=n \
+          modules
+
+        # Debug
+        find "$WLAN_ROOT" -type f \( -name "Module.symvers" -o -name "*.ko" \) -exec ls -lh {} +
+
+        INSTALL_ARGS="INSTALL_MOD_PATH=$INSTALL_MOD_PATH INSTALL_MOD_STRIP=1"
+
+        # Install CNSS2 (Platform)
+        make -C "$KERNEL_MIXED_TREE" \
+          M="$WLAN_ROOT/platform" \
+          KERNEL_SRC=$KERNEL_PLATFORM/msm-kernel \
+          $ARGS \
+          $INSTALL_ARGS \
+          modules_install
+
+        # Install QCACLD-3.0 (WLAN)
+        make -C "$KERNEL_MIXED_TREE" \
+          M="$WLAN_ROOT/qcacld-3.0" \
+          KERNEL_SRC=$KERNEL_PLATFORM/msm-kernel \
+          $ARGS \
+          $INSTALL_ARGS \
+          modules_install
+
     - name: Filter modules
       shell: bash
       run: |
