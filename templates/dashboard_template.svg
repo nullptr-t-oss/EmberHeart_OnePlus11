@@ -31,12 +31,15 @@
   <text x="24" y="35" class="text-title">CI Status</text>
 
   <g transform="translate(24, 54)">
-    </g>
+    {{STATUS}}
+  </g>
 
   <g transform="translate(136, 54)">
-    </g>
+    {{TAG}}
+  </g>
 
   <g transform="translate(258, 54)">
-    </g>
+    {{COMMIT}}
+  </g>
 
 </svg>

@@ -31,9 +31,9 @@ def main():
     wrapper = read_file('templates/dashboard_template.svg')
 
     # Inject into Wrapper
-    wrapper = wrapper.replace('', final_status)
-    wrapper = wrapper.replace('', final_tag)
-    wrapper = wrapper.replace('', final_commit)
+    wrapper = wrapper.replace('{{STATUS}}', final_status)
+    wrapper = wrapper.replace('{{TAG}}', final_tag)
+    wrapper = wrapper.replace('{{COMMIT}}', final_commit)
 
     # Output
     with open('ci.svg', 'w') as f:
