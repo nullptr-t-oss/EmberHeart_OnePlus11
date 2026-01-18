@@ -1,0 +1,65 @@
+name: Update Status Badges
+
+# Trigger after the main build workflow completes
+on:
+  workflow_run:
+    workflows: ["Build and Release OnePlus 11 EmberHeart Kernel and Kernel Modules"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+
+jobs:
+  generate-badge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Badges Branch
+        uses: actions/checkout@v4
+        with:
+          ref: badges
+          path: badges
+
+      - name: Fetch Release & Commit Info
+        id: info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "STATUS=${{ github.event.workflow_run.conclusion }}" >> $GITHUB_ENV
+
+          # take the head_sha from the workflow that just finished
+          SHA=${{ github.event.workflow_run.head_sha }}
+          echo "COMMIT_HASH=$SHA" >> $GITHUB_ENV
+
+          LATEST_JSON=$(gh api "repos/$REPO/releases?per_page=1")
+
+          IS_PRE=$(echo "$LATEST_JSON" | jq -r '.[0].prerelease')
+          TAG_NAME=$(echo "$LATEST_JSON" | jq -r '.[0].tag_name')
+
+          if [ "$IS_PRE" == "true" ]; then
+            echo "RELEASE_TYPE=prerelease" >> $GITHUB_ENV
+          else
+            echo "RELEASE_TYPE=release" >> $GITHUB_ENV
+          fi
+
+          echo "TAG_TEXT=$TAG_NAME" >> $GITHUB_ENV
+
+      - name: Generate SVG
+        run: |
+          cd badges
+          python assemble_badge.py
+
+      - name: Commit and Push
+        run: |
+          cd badges
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [[ -n $(git status --porcelain dashboard.svg) ]]; then
+            git add dashboard.svg
+            git commit -m "Update dashboard badge [skip ci]"
+            git push origin badges
+          else
+            echo "No change in badge status."
+          fi
