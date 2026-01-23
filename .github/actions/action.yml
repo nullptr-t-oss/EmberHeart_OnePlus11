@@ -307,12 +307,12 @@ runs:
         fi
 
         cd ..
-        KSU_COMMIT_SHA=$(git rev-parse HEAD)
-        echo "KSU_COMMIT_SHA=$KSU_COMMIT_SHA" >> $GITHUB_ENV
+        KSUN_COMMIT_SHA=$(git rev-parse HEAD)
+        echo "KSUN_COMMIT_SHA=$KSUN_COMMIT_SHA" >> $GITHUB_ENV
 
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
         echo "KernelSU Next Version: $KSU_VERSION"
-        echo "KernelSU Next added (commit: ${KSU_COMMIT_SHA:0:8}) ✅"
+        echo "KernelSU Next added (commit: ${KSUN_COMMIT_SHA:0:8}) ✅"
         echo "::endgroup::"
 
     - name: Apply SUSFS Patches
