@@ -35,7 +35,7 @@ runs:
       run: |
         set -euo pipefail
         echo "OP_MANIFEST=$OP_MANIFEST_${{ inputs.manifest }}_MODULES" >> "$GITHUB_ENV"
-    
+
     - name: Validate Inputs
       shell: bash
       run: |
@@ -85,7 +85,6 @@ runs:
         esac
         echo "Input validation OK."
         echo "::endgroup::"
-
 
     - name: Install Minimal Dependencies
       shell: bash
@@ -142,7 +141,7 @@ runs:
           sleep 30
         done
         $success || { echo "repo sync failed after 3 attempts"; exit 1; }
-        
+
     - name: Get Kernel Version Info
       shell: bash
       run: |
@@ -177,7 +176,6 @@ runs:
         echo "KERNEL_VER=$VERSION.$PATCHLEVEL" >> "$GITHUB_ENV"
         echo "KERNEL_FULL_VER=$ANDROID_VERSION-$FULL_VERSION" >> "$GITHUB_ENV"
         echo "SUSFS_KERNEL_BRANCH=gki-$ANDROID_VERSION-$VERSION.$PATCHLEVEL" >> "$GITHUB_ENV"
-
 
     - name: Setup ccache
       uses: hendrikmuhs/ccache-action@v1.2.19
@@ -217,7 +215,7 @@ runs:
 
         CONFIG_WLAN_VENDOR_ATH=y
         CONFIG_ATH_COMMON=m
-        
+
         CONFIG_ATH9K=m
         CONFIG_ATH9K_HW=m
         CONFIG_ATH9K_HTC=m
@@ -245,7 +243,7 @@ runs:
         CONFIG_MT7615_COMMON=m
         CONFIG_MT7915E=m
         CONFIG_MT7921E=m
-        
+
         CONFIG_MAC80211_LEDS=m
 
         CONFIG_CAN_SLCAN=m
@@ -318,8 +316,7 @@ runs:
         OUT=out
         export PATH="${CLANG_BIN_PATH}:$PATH" 
         export PATH="/usr/lib/ccache:$PATH"
-        
-        
+
         cd "$MSM"
 
         # Merge defconfig fragments from vendor/kalama_GKI.config
@@ -332,12 +329,12 @@ runs:
         echo "CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=n" >> "./arch/arm64/configs/gki_defconfig"
 
         INSTALL_MOD_PATH="$MSM/out"
-        
+
         echo "Building kernel modules..."
         make ARCH=arm64 LLVM=1 O=out gki_defconfig   
         make -j$(nproc --all) ARCH=arm64 LLVM=1 O=out CC="ccache clang" modules       
         make -j$(nproc --all) ARCH=arm64 LLVM=1 O=out INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
-        
+
         #echo "Building out of tree external kernel modules..."
         #cd "$KERNEL_PLATFORM"
         #QCA_WLAN_DIR="$GITHUB_WORKSPACE/$CONFIG/vendor/qcom/opensource/wlan/qcacld-3.0/"
@@ -346,7 +343,7 @@ runs:
         #make -C ../../vendor/qcom/opensource/datarmnet-ext/aps M=../../vendor/qcom/opensource/datarmnet-ext/aps KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$OUT LLVM=1 DEPMOD=depmod DTC=$KERNEL_PLATFORM/build/kernel/build-tools/path/linux-x86/dtc RMNET_CORE_INC_DIR=$CONFIG/vendor/qcom/opensource/datarmnet/core RMNET_CORE_PATH=vendor/qcom/opensource/datarmnet/core DATARMNET_CORE_PATH=datarmnet/core ANDROID_BUILD_TOP=$CONFIG KBUILD_MIXED_TREE=..//device/qcom/kalama-kernel
         
         #make -C ../../vendor/qcom/opensource/wlan/platform M=../../vendor/qcom/opensource/wlan/platform KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$OUT LLVM=1 DEPMOD=depmod DTC=$KERNEL_PLATFORM/build/kernel/build-tools/path/linux-x86/dtc WLAN_PLATFORM_ROOT=$CONFIG/vendor/qcom/opensource/wlan/platform HAVE_ARCH_COMPILER_H=y CONFIG_CNSS_OUT_OF_TREE=y CONFIG_CNSS2=m CONFIG_CNSS2_QMI=y CONFIG_CNSS_QMI_SVC=m CONFIG_CNSS_PLAT_IPC_QMI_SVC=m CONFIG_CNSS_GENL=m CONFIG_WCNSS_MEM_PRE_ALLOC=m CONFIG_CNSS_UTILS=m CONFIG_BUS_AUTO_SUSPEND=y CONFIG_CNSS_HW_SECURE_DISABLE=y KERNEL_SUPPORTS_NESTED_COMPOSITES=n KBUILD_EXTRA_SYMBOLS=$OUT/sec-module-symvers_intermediates/Module.symvers ANDROID_BUILD_TOP=$CONFIG KBUILD_MIXED_TREE=..//device/qcom/kalama-kernel
-        
+
     - name: Filter modules
       shell: bash
       run: |
@@ -367,7 +364,7 @@ runs:
         # Download default module list
         curl -L -o default_modules.txt https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/default_modules.txt
         # Remove modules in the default list
-        
+
         while IFS= read -r module; do
           if [ -e "$module" ]; then
             rm -f "$module"
@@ -391,7 +388,7 @@ runs:
         mkdir -p "$CONFIG_DIR/artifacts"
         find "$MODULES_SRC" -type f -name '*.ko' -print0 | xargs -0 zip -j "$MODULES_ZIP"
         echo "Packaged kernel modules to $MODULES_ZIP"
-        
+
     - name: Final Build Summary
       shell: bash
       run: |
@@ -406,7 +403,7 @@ runs:
           echo "CCache Statistics :"
           echo "$(ccache -s -v)"
         } >> "$GITHUB_STEP_SUMMARY"
-        
+
     - name: Cleanup old ccache
       shell: bash
       run: |
@@ -420,4 +417,3 @@ runs:
       with:
         name: kernel-modules-${{ env.CONFIG }}
         path: ${{ env.CONFIG }}/artifacts/
-
