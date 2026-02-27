@@ -258,7 +258,7 @@ runs:
         cd "$MSM"
         cat >> arch/arm64/configs/gki_defconfig <<EOF
         
-        CONFIG_DRM_MSM=m
+
         
         EOF
         
@@ -337,6 +337,9 @@ runs:
 
         make ARCH=arm64 mrproper
         mkdir -p "$OUT"
+
+        # Remove required configs not set in fragment
+        sed -i '/# CONFIG_MAC80211_LEDS is not set/d' arch/arm64/configs/vendor/${OP_SOC}_GKI.config
 
         # Merge defconfig fragments from vendor/kalama_GKI.config
         ./scripts/kconfig/merge_config.sh -O "$OUT" -m arch/arm64/configs/gki_defconfig arch/arm64/configs/vendor/${OP_SOC}_GKI.config
