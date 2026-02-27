@@ -346,7 +346,7 @@ runs:
         
         # make -C modules.ext.oplus ../modules.ext.oplus KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$OP_SOC
         for module in "${ext_oplus[@]}"; do
-            make -C "../$module" M="../$module" KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$OP_SOC
+            make -C "../$module" M="../$module" KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$OP_SOC V=1
         done
 
         #echo "Building out of tree external kernel modules..."
