@@ -199,7 +199,7 @@ runs:
       run: |
         set -euo pipefail
         cd "$CONFIG/kernel_platform"
-        rm -f msm-kernel/android/abi_gki_protected_exports_* || true
+        rm -f msm-kernel/android/abi_gki_protected_--enables_* || true
         df -h
 
     - name: Add nethunter specfic drivers already present in kernel to be built as modules
@@ -349,8 +349,8 @@ runs:
         
         # OPLUS ext modules
         for module in "${ext_oplus[@]}"; do
-            make -C "../$module" M="../$module" ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$OP_SOC
-            make -C "../$module" M="../$module" ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$OP_SOC INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+            make -C "../$module" M="../$module" -j$(nproc --all) ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$OP_SOC
+            make -C "../$module" M="../$module" -j$(nproc --all)ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$OP_SOC INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
         done
 
         # QCOM ext modules
@@ -362,20 +362,40 @@ runs:
             ../vendor/qcom/opensource/securemsm-kernel/
             ../vendor/qcom/opensource/display-drivers/msm/
         )
-        
+
+        # MSM DRM
         ./scripts/config --file arch/arm64/configs/gki_defconfig \
-            --enable CONFIG_HDCP_QSEECOM \
-            --enable CONFIG_QTI_TZ_LOG \
-            --enable CONFIG_QCOM_SMCINVOKE \
-            --enable CONFIG_HW_RANDOM_MSM_LEGACY \
             --enable CONFIG_DRM_MSM \
-            --enable CONFIG_DRM_OPLUS
-        
+            --enable CONFIG_DRM_MSM_SDE \
+            --enable CONFIG_SYNC_FILE \
+            --enable CONFIG_DRM_MSM_DSI \
+            --enable CONFIG_DRM_MSM_DP \
+            --enable CONFIG_DRM_MSM_DP_MST \
+            --enable CONFIG_DSI_PARSER \
+            --enable CONFIG_QCOM_MDSS_PLL \
+            --enable CONFIG_DRM_SDE_RSC \
+            --enable CONFIG_DRM_SDE_WB \
+            --enable CONFIG_DRM_MSM_REGISTER_LOGGING \
+            --enable CONFIG_MSM_MMRM \
+            --module CONFIG_DISPLAY_BUILD \
+            --enable CONFIG_HDCP_QSEECOM \
+            --enable CONFIG_DRM_SDE_VM \
+            --enable CONFIG_QTI_HW_FENCE \
+            --enable CONFIG_QCOM_SPEC_SYNC \
+            --module CONFIG_DRM_OPLUS \
+            --module CONFIG_DRM_OPLUS_NOTIFY \
+            --enable OPLUS_FEATURE_DISPLAY_ADFR \
+            --enable OPLUS_FEATURE_DISPLAY_HIGH_PRECISION \
+            --enable OPLUS_FEATURE_DISPLAY_TEMP_COMPENSATION \
+            --enable OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT \
+            --enable CONFIG_PXLW_IRIS \
+            --enable CONFIG_QCOM_FSA4480_I2C
+
         make ARCH=arm64 LLVM=1 O=out gki_defconfig
-        
+
         for module in "${ext_qcom[@]}"; do
-            make -C "../$module" M="../$module" ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc "${qcom_flags[@]}" modules
-            make -C "../$module" M="../$module" ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc "${qcom_flags[@]}" INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+            make -C "../$module" M="../$module" -j$(nproc --all) ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc "${qcom_flags[@]}" modules
+            make -C "../$module" M="../$module" -j$(nproc --all) ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc "${qcom_flags[@]}" INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
             find $KERNEL_PLATFORM -type f -name "Module.symvers"
         done
 
