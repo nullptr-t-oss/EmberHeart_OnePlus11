@@ -199,7 +199,7 @@ runs:
       run: |
         set -euo pipefail
         cd "$CONFIG/kernel_platform"
-        rm -f msm-kernel/android/abi_gki_protected_--enables_* || true
+        rm -f msm-kernel/android/abi_gki_protected_exports_* || true
         df -h
 
     - name: Add nethunter specfic drivers already present in kernel to be built as modules
@@ -350,7 +350,7 @@ runs:
         # OPLUS ext modules
         for module in "${ext_oplus[@]}"; do
             make -C "../$module" M="../$module" -j$(nproc --all) ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$OP_SOC
-            make -C "../$module" M="../$module" -j$(nproc --all)ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$OP_SOC INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+            make -C "../$module" M="../$module" -j$(nproc --all) ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$OP_SOC INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
         done
 
         # QCOM ext modules
