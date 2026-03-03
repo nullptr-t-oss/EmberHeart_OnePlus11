@@ -372,41 +372,21 @@ runs:
             ../vendor/qcom/opensource/mm-drivers/hw_fence
             ../vendor/qcom/opensource/mm-drivers/sync_fence
             ../vendor/qcom/opensource/mm-drivers/msm_ext_display
-            ../vendor/qcom/opensource/securemsm-kernel/
-            ../vendor/qcom/opensource/display-drivers/msm/
+            ../vendor/qcom/opensource/securemsm-kernel
+            ../vendor/qcom/opensource/display-drivers/msm
+            ../vendor/qcom/opensource/audio-kernel
         )
 
         cd "$MSM"
 
-        # MSM DRM
-        ./scripts/config --file arch/arm64/configs/gki_defconfig \
-            --enable CONFIG_DRM_MSM \
-            --enable CONFIG_DRM_MSM_SDE \
-            --enable CONFIG_SYNC_FILE \
-            --enable CONFIG_DRM_MSM_DSI \
-            --enable CONFIG_DRM_MSM_DP \
-            --enable CONFIG_DRM_MSM_DP_MST \
-            --enable CONFIG_DSI_PARSER \
-            --enable CONFIG_QCOM_MDSS_PLL \
-            --enable CONFIG_DRM_SDE_RSC \
-            --enable CONFIG_DRM_SDE_WB \
-            --enable CONFIG_DRM_MSM_REGISTER_LOGGING \
-            --enable CONFIG_MSM_MMRM \
-            --module CONFIG_DISPLAY_BUILD \
-            --enable CONFIG_HDCP_QSEECOM \
-            --enable CONFIG_DRM_SDE_VM \
-            --enable CONFIG_QTI_HW_FENCE \
-            --enable CONFIG_QCOM_SPEC_SYNC \
-            --module CONFIG_DRM_OPLUS \
-            --module CONFIG_DRM_OPLUS_NOTIFY \
-            --enable OPLUS_FEATURE_DISPLAY_ADFR \
-            --enable OPLUS_FEATURE_DISPLAY_HIGH_PRECISION \
-            --enable OPLUS_FEATURE_DISPLAY_TEMP_COMPENSATION \
-            --enable OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT \
-            --enable CONFIG_PXLW_IRIS \
-            --enable CONFIG_QCOM_FSA4480_I2C
+        ./scripts/kconfig/merge_config.sh -O "$OUT" -m arch/arm64/configs/gki_defconfig \
+          ../../vendor/qcom/opensource/audio-kernel/config/audio-kernel.config \
+          ../../vendor/qcom/opensource/display-drivers/config/display-kernel.config \
+          ../../vendor/qcom/opensource/mm-drivers/config/mm-drivers.config \
+          ../../vendor/qcom/opensource/mmrm-driver/config/mmrm-driver.config \
+          ../../vendor/qcom/opensource/securemsm-kernel/config/sec-kernel.config \
 
-        make ARCH=arm64 LLVM=1 O=out gki_defconfig
+        make ARCH=arm64 LLVM=1 O=out olddefconfig
 
         cd "$KERNEL_PLATFORM"
         
