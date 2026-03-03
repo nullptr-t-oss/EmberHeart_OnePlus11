@@ -50,7 +50,7 @@ runs:
       run: |
         set -euo pipefail
         echo '${{ inputs.op_config_json }}' > /tmp/config.json
-        jq -r 'to_entries[] | "OP_\(.key | ascii_upcase)=\(.value)"' /tmp/config.json >> "$GITHUB_ENV"
+        jq -r 'to_entries[] | "\(.key | ascii_upcase)=\(.value)"' /tmp/config.json >> "$GITHUB_ENV"
         echo "Parsed config:"
         jq '.' /tmp/config.json
 
@@ -58,17 +58,17 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        echo "OP_MANIFEST=$OP_MANIFEST_${{ inputs.manifest }}" >> "$GITHUB_ENV"
+        echo "MANIFEST=$MANIFEST_${{ inputs.manifest }}" >> "$GITHUB_ENV"
 
     - name: Validate Inputs
       shell: bash
       run: |
         set -euo pipefail
         echo "::group::Validate inputs"
-        model="$OP_MODEL"
-        soc="$OP_SOC"
-        branch="$OP_BRANCH"
-        manifest="$OP_MANIFEST"
+        model="$MODEL"
+        soc="$SOC"
+        branch="$BRANCH"
+        manifest="$MANIFEST"
         optimize='${{ inputs.optimize_level }}'
 
         # Non-empty checks
@@ -128,7 +128,7 @@ runs:
       run: |
         set -euo pipefail
         # Derive a unique build directory name
-        CONFIG="$OP_MODEL"
+        CONFIG="$MODEL"
         echo "CONFIG=$CONFIG" >> "$GITHUB_ENV"
         # Install repo tool if missing
         REPO="/usr/local/bin/repo"
@@ -154,12 +154,12 @@ runs:
         mkdir -p "$CONFIG"
         cd "$CONFIG"
         echo "Initializing and syncing kernel source..."
-        if [[ "$OP_MANIFEST" == https://* ]]; then
+        if [[ "$MANIFEST" == https://* ]]; then
           mkdir -p .repo/manifests
-          curl --fail --show-error --location --proto '=https' "$OP_MANIFEST" -o .repo/manifests/temp_manifest.xml
+          curl --fail --show-error --location --proto '=https' "$MANIFEST" -o .repo/manifests/temp_manifest.xml
           "$REPO" init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m temp_manifest.xml --repo-rev=v2.16 --depth=1 --no-clone-bundle --no-tags
         else
-          "$REPO" init -u https://github.com/OnePlusOSS/kernel_manifest.git -b "$OP_BRANCH" -m "$OP_MANIFEST" --repo-rev=v2.16 --depth=1 --no-clone-bundle --no-tags
+          "$REPO" init -u https://github.com/OnePlusOSS/kernel_manifest.git -b "$BRANCH" -m "$MANIFEST" --repo-rev=v2.16 --depth=1 --no-clone-bundle --no-tags
         fi
         "$REPO" --version
         success=false
@@ -204,7 +204,7 @@ runs:
         SUBLEVEL=$(grep '^SUBLEVEL *=' Makefile | awk '{print $3}')
         FULL_VERSION="$VERSION.$PATCHLEVEL.$SUBLEVEL"
         cd "$ARTIFACTS_DIR"
-        echo "$ANDROID_VERSION-$FULL_VERSION" > "${OP_MODEL}.txt"
+        echo "$ANDROID_VERSION-$FULL_VERSION" > "${MODEL}.txt"
         echo "ANDROID_VER=$ANDROID_VERSION" >> "$GITHUB_ENV"
         echo "KERNEL_VER=$VERSION.$PATCHLEVEL" >> "$GITHUB_ENV"
         echo "KERNEL_FULL_VER=$ANDROID_VERSION-$FULL_VERSION" >> "$GITHUB_ENV"
@@ -458,8 +458,9 @@ runs:
         if ! wget -O- https://github.com/vc-teahouse/Baseband-guard/raw/main/setup.sh | bash -s fix_blkdev_rename; then
           echo "::warning::BBG setup script failed, continuing anyway"
         fi
-        echo "CONFIG_BBG=y" >> common/arch/arm64/configs/gki_defconfig
-        sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' common/security/Kconfig
+        cd common
+        ./scripts/config --file arch/arm64/configs/gki_defconfig --enable CONFIG_BBG
+        sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' security/Kconfig
         # cd ./KernelSU-Next
         # echo "Patching BBG Enhanced Security!"
         # patch -p1 --forward < "../../../kernel_patches/common/bbg_untrusted_cred.patch"
@@ -479,31 +480,30 @@ runs:
       run: |
         set -euo pipefail
         echo "::group::Adding KernelSU and SUSFS configs..."
-        cd "$CONFIG/kernel_platform"
-        # Remove indentation to avoid leading spaces
-        cat >> common/arch/arm64/configs/gki_defconfig <<EOF
-        CONFIG_KSU=y
-        CONFIG_KSU_KPROBES_HOOK=n
-        CONFIG_KSU_SUSFS=y
-        CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
-        CONFIG_KSU_SUSFS_SUS_PATH=y
-        CONFIG_KSU_SUSFS_SUS_MOUNT=y
-        CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
-        CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
-        CONFIG_KSU_SUSFS_SUS_KSTAT=y
-        CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n
-        CONFIG_KSU_SUSFS_TRY_UMOUNT=y
-        CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
-        CONFIG_KSU_SUSFS_SPOOF_UNAME=y
-        CONFIG_KSU_SUSFS_ENABLE_LOG=y
-        CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
-        CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
-        CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-        CONFIG_KSU_SUSFS_SUS_MAP=y
-        CONFIG_KSU_SUSFS_SUS_SU=n
-        CONFIG_TMPFS_XATTR=y
-        CONFIG_TMPFS_POSIX_ACL=y
-        EOF
+        cd "$CONFIG/kernel_platform/common"
+
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_KSU \
+          --disable CONFIG_KSU_KPROBES_HOOK \
+          --enable CONFIG_KSU_SUSFS \
+          --enable CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT \
+          --enable CONFIG_KSU_SUSFS_SUS_PATH \
+          --enable CONFIG_KSU_SUSFS_SUS_MOUNT \
+          --enable CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT \
+          --enable CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT \
+          --enable CONFIG_KSU_SUSFS_SUS_KSTAT \
+          --disable CONFIG_KSU_SUSFS_SUS_OVERLAYFS \
+          --enable CONFIG_KSU_SUSFS_TRY_UMOUNT \
+          --enable CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT \
+          --enable CONFIG_KSU_SUSFS_SPOOF_UNAME \
+          --enable CONFIG_KSU_SUSFS_ENABLE_LOG \
+          --enable CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS \
+          --enable CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG \
+          --enable CONFIG_KSU_SUSFS_OPEN_REDIRECT \
+          --enable CONFIG_KSU_SUSFS_SUS_MAP \
+          --disable CONFIG_KSU_SUSFS_SUS_SU \
+          --enable CONFIG_TMPFS_XATTR \
+          --enable CONFIG_TMPFS_POSIX_ACL
 
         echo "KernelSU and SUSFS configuration added ✅"
         echo "::endgroup::"
@@ -513,19 +513,19 @@ runs:
       run: |
         set -euo pipefail
         echo "::group::Adding Oneplus BBR"
-        cd "$CONFIG/kernel_platform"
-        cat >> common/arch/arm64/configs/gki_defconfig <<EOF
-        CONFIG_TCP_CONG_ADVANCED=y
-        CONFIG_TCP_CONG_BBR=y
-        CONFIG_NET_SCH_FQ=y
-        CONFIG_NET_SCH_FQ_CODEL=y
-        EOF
+        cd "$CONFIG/kernel_platform/common"
+
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_TCP_CONG_ADVANCED \
+          --enable CONFIG_TCP_CONG_BBR \
+          --enable CONFIG_NET_SCH_FQ \
+          --enable CONFIG_NET_SCH_FQ_CODEL
 
         echo "OnePlus BBR added ✅"
         echo "::endgroup::"
 
     - name: Add my kernel patches to common kernel
-      if: env.OP_SOC == 'kalama'
+      if: env.SOC == 'kalama'
       shell: bash
       run: |
         set -euo pipefail
@@ -541,7 +541,7 @@ runs:
         echo "::endgroup::"
 
     - name: Add other kernel patches to common kernel
-      if: env.OP_SOC == 'kalama'
+      if: env.SOC == 'kalama'
       shell: bash
       run: |
         set -euo pipefail
@@ -581,69 +581,81 @@ runs:
       run: |
         set -euo pipefail
         echo "::group::Applying Nethunter configs..."
-        cd "$CONFIG/kernel_platform"
-        cat >> common/arch/arm64/configs/gki_defconfig <<EOF
-        CONFIG_BT_HCIBTUSB=y
-        CONFIG_BT_HCIBTUSB_BCM=y
-        CONFIG_BT_HCIBTUSB_RTL=y
-        CONFIG_BT_HCIVHCI=y
-        CONFIG_BT_HCIBCM203X=y
-        CONFIG_BT_HCIBPA10X=y
-        CONFIG_BT_HCIBFUSB=y
+        cd "$CONFIG/kernel_platform/common"
 
-        CONFIG_USB_AIRSPY=y
-        CONFIG_USB_HACKRF=y
+        # Bluetooth configs
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_BT_HCIBTUSB \
+          --enable CONFIG_BT_HCIBTUSB_BCM \
+          --enable CONFIG_BT_HCIBTUSB_RTL \
+          --enable CONFIG_BT_HCIVHCI \
+          --enable CONFIG_BT_HCIBCM203X \
+          --enable CONFIG_BT_HCIBPA10X \
+          --enable CONFIG_BT_HCIBFUSB
 
-        CONFIG_CAN=y
-        CONFIG_CAN_DEV=y
-        CONFIG_CAN_CALC_BITTIMING=y
-        CONFIG_CAN_LEDS=y
-        CONFIG_CAN_VCAN=y
+        # Airspy & HackRF
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_USB_AIRSPY \
+          --enable CONFIG_USB_HACKRF
 
-        CONFIG_CAN_GRCAN=y
-        CONFIG_CAN_XILINXCAN=y
+        # CAN
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_CAN \
+          --enable CONFIG_CAN_DEV \
+          --enable CONFIG_CAN_CALC_BITTIMING \
+          --enable CONFIG_CAN_LEDS \
+          --enable CONFIG_CAN_VCAN \
+          --enable CONFIG_CAN_GRCAN \
+          --enable CONFIG_CAN_XILINXCAN
 
         # Bosch C_CAN/D_CAN devices
-        CONFIG_CAN_C_CAN=y
-        CONFIG_CAN_C_CAN_PLATFORM=y
-        CONFIG_CAN_C_CAN_PCI=y
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_CAN_C_CAN \
+          --enable CONFIG_CAN_C_CAN_PLATFORM \
+          --enable CONFIG_CAN_C_CAN_PCI
 
         # Bosch CC770 and Intel AN82527 devices
-        CONFIG_CAN_CC770=y
-        CONFIG_CAN_CC770_ISA=y
-        CONFIG_CAN_CC770_PLATFORM=y
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_CAN_CC770 \
+          --enable CONFIG_CAN_CC770_ISA \
+          --enable CONFIG_CAN_CC770_PLATFORM
 
         # Bosch M_CAN devices
-        CONFIG_CAN_M_CAN=y
-        CONFIG_CAN_M_CAN_PCI=y
-        CONFIG_CAN_M_CAN_PLATFORM=y
-        CONFIG_CAN_M_CAN_TCAN4X5X=y
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_CAN_M_CAN \
+          --enable CONFIG_CAN_M_CAN_PCI \
+          --enable CONFIG_CAN_M_CAN_PLATFORM \
+          --enable CONFIG_CAN_M_CAN_TCAN4X5X
 
         # CAN SPI interfaces
-        CONFIG_CAN_HI311X=y
-        CONFIG_CAN_MCP251X=y
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_CAN_HI311X \
+          --enable CONFIG_CAN_MCP251X
 
         # CAN USB interfaces
-        CONFIG_CAN_8DEV_USB=y
-        CONFIG_CAN_EMS_USB=y
-        CONFIG_CAN_ESD_USB2=y
-        CONFIG_CAN_GS_USB=y
-        CONFIG_CAN_KVASER_USB=y
-        CONFIG_CAN_PEAK_USB=y
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_CAN_8DEV_USB \
+          --enable CONFIG_CAN_EMS_USB \
+          --enable CONFIG_CAN_ESD_USB2 \
+          --enable CONFIG_CAN_GS_USB \
+          --enable CONFIG_CAN_KVASER_USB \
+          --enable CONFIG_CAN_PEAK_USB \
 
-        CONFIG_NETLINK_DIAG=y
-        CONFIG_VSOCKETS=y
+        # CAN - Networking
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_NETLINK_DIAG \
+          --enable CONFIG_VSOCKETS \
+          --enable CONFIG_NET_SCHED \
+          --enable CONFIG_NET_EMATCH_CANID
 
-        CONFIG_NET_SCHED=y
-        CONFIG_NET_EMATCH_CANID=y
-
-        CONFIG_USB_SERIAL=y
-        CONFIG_USB_SERIAL_CONSOLE=y
-        CONFIG_USB_SERIAL_GENERIC=y
-        CONFIG_USB_SERIAL_CH341=y
-        CONFIG_USB_SERIAL_FTDI_SIO=y
-        CONFIG_USB_SERIAL_PL2303=y
-        EOF
+        # USB Serial Converter
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_USB_SERIAL \
+          --enable CONFIG_USB_SERIAL_CONSOLE \
+          --enable CONFIG_USB_SERIAL_GENERIC \
+          --enable CONFIG_USB_SERIAL_CH341 \
+          --enable CONFIG_USB_SERIAL_FTDI_SIO \
+          --enable CONFIG_USB_SERIAL_PL2303
 
         echo "Nethunter configs applied ✅"
         echo "::endgroup::"
@@ -653,11 +665,12 @@ runs:
       run: |
         set -euo pipefail
         echo "::group::Adding TTL support..."
-        cd "$CONFIG/kernel_platform"
-        cat >> common/arch/arm64/configs/gki_defconfig <<EOF
-        CONFIG_IP_NF_TARGET_TTL=y
-        CONFIG_IP6_NF_TARGET_HL=y
-        CONFIG_IP6_NF_MATCH_HL=y
+        cd "$CONFIG/kernel_platform/common"
+
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_IP_NF_TARGET_TTL \
+          --enable CONFIG_IP6_NF_TARGET_HL \
+          --enable CONFIG_IP6_NF_MATCH_HL \
         EOF
 
         echo "TTL support added ✅"
@@ -668,27 +681,27 @@ runs:
       run: |
         set -euo pipefail
         echo "::group::Adding IP SET support..."
-        cd "$CONFIG/kernel_platform"
-        cat >> common/arch/arm64/configs/gki_defconfig <<EOF
-        CONFIG_IP_SET=y
-        CONFIG_IP_SET_MAX=65534
-        CONFIG_IP_SET_BITMAP_IP=y
-        CONFIG_IP_SET_BITMAP_IPMAC=y
-        CONFIG_IP_SET_BITMAP_PORT=y
-        CONFIG_IP_SET_HASH_IP=y
-        CONFIG_IP_SET_HASH_IPMARK=y
-        CONFIG_IP_SET_HASH_IPPORT=y
-        CONFIG_IP_SET_HASH_IPPORTIP=y
-        CONFIG_IP_SET_HASH_IPPORTNET=y
-        CONFIG_IP_SET_HASH_IPMAC=y
-        CONFIG_IP_SET_HASH_MAC=y
-        CONFIG_IP_SET_HASH_NETPORTNET=y
-        CONFIG_IP_SET_HASH_NET=y
-        CONFIG_IP_SET_HASH_NETNET=y
-        CONFIG_IP_SET_HASH_NETPORT=y
-        CONFIG_IP_SET_HASH_NETIFACE=y
-        CONFIG_IP_SET_LIST_SET=y
-        EOF
+        cd "$CONFIG/kernel_platform/common"
+
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_IP_SET \
+          --set-val CONFIG_IP_SET_MAX 65534
+          --enable CONFIG_IP_SET_BITMAP_IP \
+          --enable CONFIG_IP_SET_BITMAP_IPMAC \
+          --enable CONFIG_IP_SET_BITMAP_PORT \
+          --enable CONFIG_IP_SET_HASH_IP \
+          --enable CONFIG_IP_SET_HASH_IPMARK \
+          --enable CONFIG_IP_SET_HASH_IPPORT \
+          --enable CONFIG_IP_SET_HASH_IPPORTIP \
+          --enable CONFIG_IP_SET_HASH_IPPORTNET \
+          --enable CONFIG_IP_SET_HASH_IPMAC \
+          --enable CONFIG_IP_SET_HASH_MAC \
+          --enable CONFIG_IP_SET_HASH_NETPORTNET \
+          --enable CONFIG_IP_SET_HASH_NET \
+          --enable CONFIG_IP_SET_HASH_NETNET \
+          --enable CONFIG_IP_SET_HASH_NETPORT \
+          --enable CONFIG_IP_SET_HASH_NETIFACE \
+          --enable CONFIG_IP_SET_LIST_SET
 
         echo "IP  SET support added ✅"
         echo "::endgroup::"
@@ -698,17 +711,16 @@ runs:
       run: |
         set -euo pipefail
         echo "::group::Applying build based configs..."
-        cd "$CONFIG/kernel_platform"
-        cat >> common/arch/arm64/configs/gki_defconfig <<EOF
-        CONFIG_LTO_CLANG_THIN=y
-        CONFIG_LTO_CLANG=y
-        CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
-        CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=n
-        CONFIG_OPTIMIZE_INLINING=y
+        cd "$CONFIG/kernel_platform/common"
 
-        CONFIG_FRAME_WARN=0
-        CONFIG_TRACEPOINTS=y
-        EOF
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_LTO_CLANG_THIN \
+          --enable CONFIG_LTO_CLANG \
+          --enable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE \
+          --disable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3 \
+          --enable CONFIG_OPTIMIZE_INLINING \
+          --set-val CONFIG_FRAME_WARN 0 \
+          --enable CONFIG_TRACEPOINTS
 
         echo "Build configs applied ✅"
         echo "::endgroup::"
@@ -917,7 +929,7 @@ runs:
         sed -i '7 c\kernel.string=EmberHeart Kernel by nullptr-t-oss' anykernel.sh
         curl https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/banner > banner
 
-        ZIP_NAME="AnyKernel3_${OP_MODEL}_${{ env.KERNEL_FULL_VER }}_Next_${KSUVER}_SuSFS_${SUSVER}.zip"
+        ZIP_NAME="AnyKernel3_${MODEL}_${{ env.KERNEL_FULL_VER }}_Next_${KSUVER}_SuSFS_${SUSVER}.zip"
         ARTIFACTS_DIR="$CONFIG_DIR/artifacts"
         mkdir -p "$ARTIFACTS_DIR"
 
@@ -925,7 +937,7 @@ runs:
         ( cd "$GITHUB_WORKSPACE/AnyKernel3" && zip -r "$ARTIFACTS_DIR/$ZIP_NAME" ./* >/dev/null )
 
         # Keep only the flashable zip and the model metadata file (assumed already created earlier)
-        find "$ARTIFACTS_DIR" -maxdepth 1 -type f ! -name "$ZIP_NAME" ! -name "${OP_MODEL}.txt" -delete
+        find "$ARTIFACTS_DIR" -maxdepth 1 -type f ! -name "$ZIP_NAME" ! -name "${MODEL}.txt" -delete
 
         # Output for later steps (optional)
         echo "zip_name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
@@ -973,7 +985,7 @@ runs:
       run: |
         set -euo pipefail
         {
-          echo "Model: ${OP_MODEL}"
+          echo "Model: ${MODEL}"
           echo "Android: ${{ env.ANDROID_VER }}"
           echo "Kernel base: ${{ env.KERNEL_VER }}"
           echo "Kernel full: ${{ env.KERNEL_FULL_VER }}"
@@ -992,7 +1004,7 @@ runs:
         {
           echo "### Kernel Build Summary"
           echo ""
-          echo "- Model: ${{ env.OP_MODEL }}"
+          echo "- Model: ${{ env.MODEL }}"
           echo "- Android: ${{ env.ANDROID_VER }}"
           echo "- Kernel Version: ${{ steps.save_metadata.outputs.kernel_version }}"
           echo "- Kernel Uname: ${{ env.KERNEL_UNAME }}"
