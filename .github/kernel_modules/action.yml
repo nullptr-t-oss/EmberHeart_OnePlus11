@@ -374,17 +374,12 @@ runs:
             ../vendor/qcom/opensource/mm-drivers/msm_ext_display
             ../vendor/qcom/opensource/securemsm-kernel
             ../vendor/qcom/opensource/display-drivers/msm
-            ../vendor/qcom/opensource/audio-kernel/asoc
-            ../vendor/qcom/opensource/audio-kernel/dsp
-            ../vendor/qcom/opensource/audio-kernel/ipc
-            ../vendor/qcom/opensource/audio-kernel/oplus
-            ../vendor/qcom/opensource/audio-kernel/soc
+            ../vendor/qcom/opensource/audio-kernel/
         )
 
         cd "$MSM"
 
         ./scripts/kconfig/merge_config.sh -O "$OUT" -m arch/arm64/configs/gki_defconfig \
-          ../../vendor/qcom/opensource/audio-kernel/config/audio-kernel.config \
           ../../vendor/qcom/opensource/display-drivers/config/display-kernel.config \
           ../../vendor/qcom/opensource/mm-drivers/config/mm-drivers.config \
           ../../vendor/qcom/opensource/mmrm-driver/config/mmrm-driver.config \
