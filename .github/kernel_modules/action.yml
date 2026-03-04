@@ -378,6 +378,9 @@ runs:
             ../vendor/qcom/opensource/camera-kernel
             ../vendor/qcom/opensource/video-driver
             ../vendor/qcom/opensource/graphics-kernel
+            ../vendor/qcom/opensource/dataipa
+            ../vendor/qcom/opensource/datarmnet/core
+            ../vendor/qcom/opensource/datarmnet-ext
         )
 
         cd "$MSM"
