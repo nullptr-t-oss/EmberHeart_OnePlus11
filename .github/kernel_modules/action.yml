@@ -363,9 +363,6 @@ runs:
         # OPLUS ext modules list
         ext_oplus=($(cat "$KERNEL_PLATFORM/oplus/config/modules.ext.$KERNEL_VER.oplus"))
 
-        ext_oplus+=(
-            ../vendor/oplus/kernel/explorer
-        )
         # OPLUS ext modules
         for module in "${ext_oplus[@]}"; do
             make -C "$module" M="../$module" -j$(nproc --all) ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$SOC
@@ -382,6 +379,7 @@ runs:
             ../vendor/qcom/opensource/display-drivers/msm
             ../vendor/qcom/opensource/audio-kernel
             ../vendor/qcom/opensource/camera-kernel
+            ../vendor/oplus/kernel/explorer
             ../vendor/qcom/opensource/video-driver
             ../vendor/qcom/opensource/graphics-kernel
             ../vendor/qcom/opensource/dataipa/drivers/platform/msm
@@ -400,6 +398,12 @@ runs:
             ../vendor/st/opensource/driver
             ../vendor/st/opensource/eSE-driver
             ../vendor/qcom/opensource/wlan/qcacld-3.0
+        )
+
+        # add for oplus explorer.ko
+        qcom_flags=(
+            CHIPSET_COMPANY=QCOM
+            OPLUS_VND_BUILD_PLATFORM=$SOC
         )
 
         cd "$MSM"
