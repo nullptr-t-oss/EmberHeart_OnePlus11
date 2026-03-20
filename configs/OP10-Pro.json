@@ -8,8 +8,8 @@
   "manifest_oos15_modules": "oneplus_10_pro_v.xml",
   "manifest_fast_build_oos15": "null",
   "manifest_fast_build_oos15_modules": "null",
-  "manifest_oos16": "null",
-  "manifest_oos16_modules": "null",
+  "manifest_oos16": "oneplus_10_pro_b.xml",
+  "manifest_oos16_modules": "oneplus_10_pro_b.xml",
   "android_version": "android12",
   "kernel_version": "5.10",
   "hmbird": false
