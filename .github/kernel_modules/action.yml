@@ -26,7 +26,7 @@ runs:
       run: |
         set -euo pipefail
         echo '${{ inputs.op_config_json }}' > /tmp/config.json
-        jq -r 'to_entries[] | "OP_\(.key | ascii_upcase)=\(.value)"' /tmp/config.json >> "$GITHUB_ENV"
+        jq -r 'to_entries[] | "\(.key | ascii_upcase)=\(.value)"' /tmp/config.json >> "$GITHUB_ENV"
         echo "Parsed config:"
         jq '.' /tmp/config.json
     
@@ -34,17 +34,17 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        echo "OP_MANIFEST=$OP_MANIFEST_${{ inputs.manifest }}_MODULES" >> "$GITHUB_ENV"
+        echo "MANIFEST=$MANIFEST_${{ inputs.manifest }}_MODULES" >> "$GITHUB_ENV"
 
     - name: Validate Inputs
       shell: bash
       run: |
         set -euo pipefail
         echo "::group::Validate inputs"
-        model="$OP_MODEL"
-        soc="$OP_SOC"
-        branch="$OP_BRANCH"
-        manifest="$OP_MANIFEST"
+        model="$MODEL"
+        soc="$SOC"
+        branch="$BRANCH"
+        manifest="$MANIFEST"
         optimize='${{ inputs.optimize_level }}'
     
         # Non-empty checks
@@ -104,7 +104,7 @@ runs:
       run: |
         set -euo pipefail
         # Derive a unique build directory name
-        CONFIG="$OP_MODEL"
+        CONFIG="$MODEL"
         echo "CONFIG=$CONFIG" >> "$GITHUB_ENV"
         # Install repo tool if missing
         REPO="/usr/local/bin/repo"
@@ -122,12 +122,12 @@ runs:
         mkdir -p "$CONFIG"
         cd "$CONFIG"
         echo "Initializing and syncing kernel source..."
-        if [[ "$OP_MANIFEST" == https://* ]]; then
+        if [[ "$MANIFEST" == https://* ]]; then
           mkdir -p .repo/manifests
-          curl --fail --show-error --location --proto '=https' "$OP_MANIFEST" -o .repo/manifests/temp_manifest.xml
+          curl --fail --show-error --location --proto '=https' "$MANIFEST" -o .repo/manifests/temp_manifest.xml
           "$REPO" init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m temp_manifest.xml --repo-rev=v2.16 --depth=1 --no-clone-bundle --no-tags
         else
-          "$REPO" init -u https://github.com/OnePlusOSS/kernel_manifest.git -b "$OP_BRANCH" -m "$OP_MANIFEST" --repo-rev=v2.16 --depth=1 --no-clone-bundle --no-tags
+          "$REPO" init -u https://github.com/OnePlusOSS/kernel_manifest.git -b "$BRANCH" -m "$MANIFEST" --repo-rev=v2.16 --depth=1 --no-clone-bundle --no-tags
         fi
         "$REPO" --version
         success=false
@@ -202,6 +202,25 @@ runs:
         rm -f msm-kernel/android/abi_gki_protected_exports_* || true
         df -h
 
+    - name: Merge
+      shell: bash
+      run: |
+        set -euo pipefail
+        KERNEL_PLATFORM="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
+        MSM="$KERNEL_PLATFORM/msm-kernel"
+        OUT=out
+
+        cd "$MSM"
+
+        make ARCH=arm64 mrproper
+        mkdir -p "$OUT"
+
+        # Merge defconfig fragments from vendor/$SOC_GKI.config
+        ./scripts/kconfig/merge_config.sh -O "$OUT" -m arch/arm64/configs/gki_defconfig arch/arm64/configs/vendor/${SOC}_GKI.config
+
+        cp "$OUT/.config" arch/arm64/configs/gki_defconfig
+        rm "$OUT/.config"
+
     - name: Add nethunter specfic drivers already present in kernel to be built as modules
       shell: bash
       run: |
@@ -209,48 +228,47 @@ runs:
         KERNEL_PATH="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
         MSM="$KERNEL_PATH/msm-kernel"
         cd "$MSM"
-        cat >> arch/arm64/configs/gki_defconfig <<EOF
+        
+        # Realtek drivers
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_WLAN_VENDOR_REALTEK
 
-        CONFIG_WLAN_VENDOR_REALTEK=y
+        # ATH drivers
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_WLAN_VENDOR_ATH \
+          --module CONFIG_ATH_COMMON \
+          --module CONFIG_ATH9K \
+          --module CONFIG_ATH9K_HW \
+          --module CONFIG_ATH9K_HTC \
+          --module CONFIG_ATH9K_COMMON \
+          --module CONFIG_ATH10K \
+          --module CONFIG_ATH10K_USB \
+          --module CONFIG_ATH11K
 
-        CONFIG_WLAN_VENDOR_ATH=y
-        CONFIG_ATH_COMMON=m
+        # Mediatek drivers
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --enable CONFIG_WLAN_VENDOR_MEDIATEK \
+          --module CONFIG_MT7601U \
+          --module CONFIG_MT76_CORE \
+          --module CONFIG_MT76_CORE \
+          --module CONFIG_MT76_USB \
+          --module CONFIG_MT76x02_LIB \
+          --module CONFIG_MT76x02_USB \
+          --module CONFIG_MT76_CONNAC_LIB \
+          --module CONFIG_MT7603E \
+          --module CONFIG_MT76x2_COMMON \
+          --module CONFIG_MT76x0_COMMON \
+          --module CONFIG_MT7615_COMMON \
+          --module CONFIG_MT7915E \
+          --module CONFIG_MT7921E
 
-        CONFIG_ATH9K=m
-        CONFIG_ATH9K_HW=m
-        CONFIG_ATH9K_HTC=m
-        CONFIG_ATH9K_COMMON=m
-
-        CONFIG_ATH10K=m
-        CONFIG_ATH10K_USB=m
-
-        CONFIG_ATH11K=m
-
-        CONFIG_WLAN_VENDOR_MEDIATEK=y
-
-        CONFIG_MT7601U=m
-        CONFIG_MT76_CORE=m
-
-        CONFIG_MT76_CORE=m
-        CONFIG_MT76_USB=m
-        CONFIG_MT76x02_LIB=m
-        CONFIG_MT76x02_USB=m
-        CONFIG_MT76_CONNAC_LIB=m
-
-        CONFIG_MT7603E=m
-        CONFIG_MT76x2_COMMON=m
-        CONFIG_MT76x0_COMMON=m
-        CONFIG_MT7615_COMMON=m
-        CONFIG_MT7915E=m
-        CONFIG_MT7921E=m
-
-        CONFIG_MAC80211_LEDS=m
-
-        CONFIG_CAN_SLCAN=m
-        EOF
+        # Other configs
+        ./scripts/config --file arch/arm64/configs/gki_defconfig \
+          --module CONFIG_MAC80211_LEDS \
+          --module CONFIG_CAN_SLCAN
 
     - name: Add my kernel patches to msm kernel
-      if: env.OP_SOC == 'kalama'
+      if: env.SOC == 'kalama'
       shell: bash
       run: |
         set -euo pipefail
@@ -321,12 +339,8 @@ runs:
 
         cd "$MSM"
 
-        make ARCH=arm64 mrproper
-        mkdir -p "$OUT"
-
-        # Merge defconfig fragments from vendor/kalama_GKI.config
-        ./scripts/kconfig/merge_config.sh -O "$OUT" -m arch/arm64/configs/gki_defconfig arch/arm64/configs/vendor/${OP_SOC}_GKI.config
-
+        make ARCH=arm64 LLVM=1 O=$OUT gki_defconfig
+        
         # Thin LTO
         ./scripts/config --file "$OUT/.config" \
             --enable CONFIG_LTO_CLANG_THIN \
@@ -337,18 +351,61 @@ runs:
         INSTALL_MOD_PATH="$MSM/out"
 
         echo "Building kernel modules..."
-        make ARCH=arm64 LLVM=1 LLVM_IAS=1 O=out olddefconfig
-        make -j$(nproc --all) ARCH=arm64 LLVM=1 LLVM_IAS=1 O=out CC="ccache clang" modules       
-        make -j$(nproc --all) ARCH=arm64 LLVM=1 LLVM_IAS=1 O=out INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+        make ARCH=arm64 LLVM=1 O=$OUT olddefconfig
+        make -j$(nproc --all) ARCH=arm64 LLVM=1 O=$OUT CC="ccache clang" modules
+        make -j$(nproc --all) ARCH=arm64 LLVM=1 O=$OUT INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
 
-        #echo "Building out of tree external kernel modules..."
-        #cd "$KERNEL_PLATFORM"
-        #QCA_WLAN_DIR="$GITHUB_WORKSPACE/$CONFIG/vendor/qcom/opensource/wlan/qcacld-3.0/"
+        cd "$KERNEL_PLATFORM"
+
+        # OPLUS ext modules list
+        ext_oplus=($(cat "$KERNEL_PLATFORM/oplus/config/modules.ext.$KERNEL_VER.oplus"))
+
+        ext_oplus+=(
+            ../vendor/oplus/kernel/explorer
+        )
+        # OPLUS ext modules
+        for module in "${ext_oplus[@]}"; do
+            make -C "$module" M="../$module" -j$(nproc --all) ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$SOC
+            make -C "$module" M="../$module" -j$(nproc --all) ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$SOC INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+        done
+
+        # QCOM ext modules
+        ext_qcom+=(
+            ../vendor/qcom/opensource/mmrm-driver
+            ../vendor/qcom/opensource/mm-drivers/hw_fence
+            ../vendor/qcom/opensource/mm-drivers/sync_fence
+            ../vendor/qcom/opensource/mm-drivers/msm_ext_display
+            ../vendor/qcom/opensource/securemsm-kernel
+            ../vendor/qcom/opensource/display-drivers/msm
+            ../vendor/qcom/opensource/audio-kernel
+            ../vendor/qcom/opensource/camera-kernel
+            ../vendor/qcom/opensource/video-driver
+            ../vendor/qcom/opensource/graphics-kernel
+            ../vendor/qcom/opensource/dataipa/drivers/platform/msm
+            ../vendor/qcom/opensource/datarmnet/core
+            ../vendor/qcom/opensource/datarmnet-ext/aps
+            ../vendor/qcom/opensource/datarmnet-ext/offload
+            ../vendor/qcom/opensource/datarmnet-ext/shs
+            ../vendor/qcom/opensource/datarmnet-ext/sch
+            ../vendor/qcom/opensource/datarmnet-ext/perf
+            ../vendor/qcom/opensource/datarmnet-ext/perf_tether
+            ../vendor/qcom/opensource/datarmnet-ext/wlan
+            ../vendor/qcom/opensource/eva-kernel
+            ../vendor/qcom/opensource/wlan/platform
+            ../vendor/qcom/opensource/bt-kernel
+            ../vendor/nxp/opensource/driver
+            ../vendor/st/opensource/driver
+            ../vendor/st/opensource/eSE-driver
+        )
+
+        cd "$MSM"
+
+        cd "$KERNEL_PLATFORM"
         
-        #cd "$MSM"
-        #make -C ../../vendor/qcom/opensource/datarmnet-ext/aps M=../../vendor/qcom/opensource/datarmnet-ext/aps KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$OUT LLVM=1 DEPMOD=depmod DTC=$KERNEL_PLATFORM/build/kernel/build-tools/path/linux-x86/dtc RMNET_CORE_INC_DIR=$CONFIG/vendor/qcom/opensource/datarmnet/core RMNET_CORE_PATH=vendor/qcom/opensource/datarmnet/core DATARMNET_CORE_PATH=datarmnet/core ANDROID_BUILD_TOP=$CONFIG KBUILD_MIXED_TREE=..//device/qcom/kalama-kernel
-        
-        #make -C ../../vendor/qcom/opensource/wlan/platform M=../../vendor/qcom/opensource/wlan/platform KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$OUT LLVM=1 DEPMOD=depmod DTC=$KERNEL_PLATFORM/build/kernel/build-tools/path/linux-x86/dtc WLAN_PLATFORM_ROOT=$CONFIG/vendor/qcom/opensource/wlan/platform HAVE_ARCH_COMPILER_H=y CONFIG_CNSS_OUT_OF_TREE=y CONFIG_CNSS2=m CONFIG_CNSS2_QMI=y CONFIG_CNSS_QMI_SVC=m CONFIG_CNSS_PLAT_IPC_QMI_SVC=m CONFIG_CNSS_GENL=m CONFIG_WCNSS_MEM_PRE_ALLOC=m CONFIG_CNSS_UTILS=m CONFIG_BUS_AUTO_SUSPEND=y CONFIG_CNSS_HW_SECURE_DISABLE=y KERNEL_SUPPORTS_NESTED_COMPOSITES=n KBUILD_EXTRA_SYMBOLS=$OUT/sec-module-symvers_intermediates/Module.symvers ANDROID_BUILD_TOP=$CONFIG KBUILD_MIXED_TREE=..//device/qcom/kalama-kernel
+        for module in "${ext_qcom[@]}"; do
+            make -C "$module" M="../$module" -j$(nproc --all) ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc "${qcom_flags[@]}" modules
+            make -C "$module" M="../$module" -j$(nproc --all) ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc "${qcom_flags[@]}" INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+        done
 
     - name: Filter modules
       shell: bash
@@ -390,7 +447,7 @@ runs:
         MSM="$KERNEL_PLATFORM/msm-kernel"
         OUT="$MSM/out"
         MODULES_SRC="$OUT/modules"
-        MODULES_ZIP="$CONFIG_DIR/artifacts/kernel_modules_${{ env.OP_MODEL }}.zip"
+        MODULES_ZIP="$CONFIG_DIR/artifacts/kernel_modules_${{ env.MODEL }}.zip"
         mkdir -p "$CONFIG_DIR/artifacts"
         find "$MODULES_SRC" -type f -name '*.ko' -print0 | xargs -0 zip -j "$MODULES_ZIP"
         echo "Packaged kernel modules to $MODULES_ZIP"

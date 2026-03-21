@@ -10,6 +10,8 @@
   "manifest_fast_build_oos15_modules": "https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/kernel_manifest/oneplus_11_v_modules.xml",
   "manifest_oos16": "oneplus_11_b.xml",
   "manifest_oos16_modules": "oneplus_11_b.xml",
+  "manifest_oos16_tmp": "oneplus_11_b.xml",
+  "manifest_oos16_tmp_modules": "https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/kernel_manifest/oneplus_11_b_modules.xml",
   "android_version": "android13",
   "kernel_version": "5.15",
   "hmbird": false
