@@ -819,8 +819,8 @@ runs:
       run: |
         set -euo pipefail
         echo "::group::Applying Kernel Branding..."
-        KERNEL_PATH="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
-        cd "$KERNEL_PATH/common"
+        KERNEL_PLATFORM="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
+        cd "$KERNEL_PLATFORM/common"
         mkdir -p out
         CUSTOM_LOCALVERSION="-${ANDROID_VER}-${{ inputs.kernel_uname }}"
         echo "CUSTOM_LOCALVERSION=$CUSTOM_LOCALVERSION" >> "$GITHUB_ENV"
@@ -864,8 +864,8 @@ runs:
       run: |
         set -euo pipefail
         echo "::group::Build kernel"
-        KERNEL_PATH="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
-        COMMON="$KERNEL_PATH/common"
+        KERNEL_PLATFORM="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
+        COMMON="$KERNEL_PLATFORM/common"
         cd "$COMMON"
         : > "$COMMON/.scmversion"
 
@@ -932,8 +932,8 @@ runs:
       run: |
         set -euo pipefail
         echo "::group::Collecting Build Stats..."
-        KERNEL_PATH="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
-        COMMON="$KERNEL_PATH/common"
+        KERNEL_PLATFORM="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
+        COMMON="$KERNEL_PLATFORM/common"
         OUT="$COMMON/out"
         IMG="$OUT/arch/arm64/boot/Image"
 
