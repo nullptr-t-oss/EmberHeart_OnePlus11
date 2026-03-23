@@ -786,6 +786,16 @@ runs:
           --set-val CONFIG_FRAME_WARN 0 \
           --enable CONFIG_TRACEPOINTS
 
+        # Optimize level config and flags
+        if [ "${{ inputs.optimize_level }}" = "O3" ]; then
+          ./scripts/config --file arch/arm64/configs/gki_defconfig \
+            --disable CC_OPTIMIZE_FOR_PERFORMANCE \
+            --enable CC_OPTIMIZE_FOR_PERFORMANCE_O3
+        else
+          ./scripts/config --file arch/arm64/configs/gki_defconfig \
+           --enable CC_OPTIMIZE_FOR_PERFORMANCE \
+           --disable CC_OPTIMIZE_FOR_PERFORMANCE_O3
+        fi
         echo "Build configs applied ✅"
         echo "::endgroup::"
 
@@ -869,44 +879,52 @@ runs:
 
         export PATH="/usr/lib/ccache:$PATH"
 
-        export LLVM=1 LLVM_IAS=1
-        export ARCH=arm64 SUBARCH=arm64
-        export CROSS_COMPILE=aarch64-linux-android-
-        export CROSS_COMPILE_COMPAT=arm-linux-androideabi-
-        export LD=ld.lld HOSTLD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip HOSTCC=clang HOSTCXX=clang++
-        export CC=ccache clang
+        MAKE_FLAGS+=(
+          LLVM=1
+          LLVM_IAS=1
+          ARCH=arm64
+          SUBARCH=arm64
+          LD=ld.lld
+          HOSTLD=ld.lld
+          AR=llvm-ar
+          NM=llvm-nm
+          OBJCOPY=llvm-objcopy
+          OBJDUMP=llvm-objdump
+          DEPMOD=depmod
+          DTC=dtc
+          STRIP=llvm-strip
+          HOSTCC=clang
+          HOSTCXX=clang++
+          CC="ccache clang"
+        )
+
         OUT=out
+        INSTALL_MOD_PATH="$COMMON/out"
         mkdir -p "$OUT"
-        make O="$OUT" gki_defconfig
+        make "${MAKE_FLAGS[@]}" O="$OUT" gki_defconfig
+
+        if [ "${{ inputs.optimize_level }}" = "O3" ]; then
+          KCFLAGS_EXTRA="-O3"
+        else
+          KCFLAGS_EXTRA="-O2"
+        fi
 
         # LOCALVERSION branding
         if [ -n "${CUSTOM_LOCALVERSION:-}" ]; then
-          scripts/config --file "$OUT/.config" --set-str LOCALVERSION "${CUSTOM_LOCALVERSION}"
-          scripts/config --file "$OUT/.config" -d LOCALVERSION_AUTO || true
+          ./scripts/config --file "$OUT/.config" \
+            --set-str LOCALVERSION "${CUSTOM_LOCALVERSION}" \
+            --disable LOCALVERSION_AUTO
           sed -i 's/scm_version="$(scm_version --short)"/scm_version=""/' scripts/setlocalversion
-        fi
-
-        # Optimize level config and flags
-        if [ "${{ inputs.optimize_level }}" = "O3" ]; then
-          scripts/config --file "$OUT/.config" -d CC_OPTIMIZE_FOR_PERFORMANCE
-          scripts/config --file "$OUT/.config" -e CC_OPTIMIZE_FOR_PERFORMANCE_O3
-          KCFLAGS_EXTRA="-O3"
-        else
-          scripts/config --file "$OUT/.config" -e CC_OPTIMIZE_FOR_PERFORMANCE
-          scripts/config --file "$OUT/.config" -d CC_OPTIMIZE_FOR_PERFORMANCE_O3
-          KCFLAGS_EXTRA="-O2"
         fi
 
         # Consistent flags; include -pipe and disable stack protector
         KCFLAGS="-Wno-error -pipe -fno-stack-protector ${KCFLAGS_EXTRA}"
         KCPPFLAGS="-DCONFIG_OPTIMIZE_INLINING"
 
-        # Regenerate defaults after config edits
-        make O="$OUT" olddefconfig
-
         echo "Starting build with $(nproc --all) threads..."
-        set -o pipefail
-        make -j"$(nproc --all)" O="$OUT" KCFLAGS="$KCFLAGS" KCPPFLAGS="$KCPPFLAGS" 2>&1 | tee build.log
+        make "${MAKE_FLAGS[@]}" O="$OUT" olddefconfig
+        make -j$(nproc --all) "${MAKE_FLAGS[@]}" KCFLAGS="$KCFLAGS" KCPPFLAGS="$KCPPFLAGS" O="$OUT" Image modules
+        make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
 
         IMG="$OUT/arch/arm64/boot/Image"
         if [ ! -f "$IMG" ]; then

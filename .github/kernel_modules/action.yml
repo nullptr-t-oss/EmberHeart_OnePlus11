@@ -362,14 +362,34 @@ runs:
         set -euo pipefail
         KERNEL_PLATFORM="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
         MSM="$KERNEL_PLATFORM/msm-kernel"
-        OUT=out
+        cd "$MSM"
 
         export PATH="${CLANG_BIN_PATH}:$PATH" 
         export PATH="/usr/lib/ccache:$PATH"
 
-        cd "$MSM"
+        MAKE_FLAGS+=(
+          LLVM=1
+          LLVM_IAS=1
+          ARCH=arm64
+          SUBARCH=arm64
+          LD=ld.lld
+          HOSTLD=ld.lld
+          AR=llvm-ar
+          NM=llvm-nm
+          OBJCOPY=llvm-objcopy
+          OBJDUMP=llvm-objdump
+          DEPMOD=depmod
+          DTC=dtc
+          STRIP=llvm-strip
+          HOSTCC=clang
+          HOSTCXX=clang++
+          CC="ccache clang"
+        )
 
-        make ARCH=arm64 LLVM=1 O=$OUT gki_defconfig
+        OUT=out
+        INSTALL_MOD_PATH="$MSM/out"
+        mkdir -p "$OUT"
+        make "${MAKE_FLAGS[@]}" O="$OUT" gki_defconfig
         
         # Thin LTO
         ./scripts/config --file "$OUT/.config" \
@@ -378,29 +398,31 @@ runs:
             --enable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE \
             --disable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3
 
-        INSTALL_MOD_PATH="$MSM/out"
-
         echo "Building kernel modules..."
-        make ARCH=arm64 LLVM=1 O=$OUT olddefconfig
-        make -j$(nproc --all) ARCH=arm64 LLVM=1 O=$OUT CC="ccache clang" modules
-        make -j$(nproc --all) ARCH=arm64 LLVM=1 O=$OUT INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
-
-        cd "$MSM"
-        make ARCH=arm64 LLVM=1 O=out oldconfig && make ARCH=arm64 LLVM=1 O=out prepare
+        make "${MAKE_FLAGS[@]}" O=$OUT olddefconfig
+        make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" modules
+        make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
 
         cd "$KERNEL_PLATFORM"
 
+        MAKE_FLAGS+=(
+          KERNEL_SRC="$KERNEL_PLATFORM/./msm-kernel"
+        )
         # OPLUS ext modules list
-        ext_oplus=($(cat "$KERNEL_PLATFORM/oplus/config/modules.ext.$KERNEL_VER.oplus"))
+        EXT_OPLUS=($(cat "$KERNEL_PLATFORM/oplus/config/modules.ext.$KERNEL_VER.oplus"))
 
+        OPLUS_FLAGS+=(
+            CHIPSET_COMPANY=QCOM
+            OPLUS_VND_BUILD_PLATFORM="$SOC"
+        )
         # OPLUS ext modules
-        for module in "${ext_oplus[@]}"; do
-            make -C "$module" M="../$module" -j$(nproc --all) ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$SOC
-            make -C "$module" M="../$module" -j$(nproc --all) ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc CHIPSET_COMPANY=QCOM OPLUS_VND_BUILD_PLATFORM=$SOC INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+        for MODULE in "${EXT_OPLUS[@]}"; do
+            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
+            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
         done
 
         # QCOM ext modules
-        ext_qcom+=(
+        EXT_QCOM+=(
             ../vendor/qcom/opensource/mmrm-driver
             ../vendor/qcom/opensource/mm-drivers/hw_fence
             ../vendor/qcom/opensource/mm-drivers/sync_fence
@@ -430,20 +452,9 @@ runs:
             ../vendor/qcom/opensource/wlan/qcacld-3.0
         )
 
-        # add for oplus explorer.ko
-        qcom_flags=(
-            CHIPSET_COMPANY=QCOM
-            OPLUS_VND_BUILD_PLATFORM=$SOC
-        )
-
-        cd "$MSM"
-        make ARCH=arm64 LLVM=1 O=out oldconfig && make ARCH=arm64 LLVM=1 O=out prepare
-
-        cd "$KERNEL_PLATFORM"
-
-        for module in "${ext_qcom[@]}"; do
-            make -C "$module" M="../$module" -j$(nproc --all) ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc "${qcom_flags[@]}" modules
-            make -C "$module" M="../$module" -j$(nproc --all) ARCH=arm64 KERNEL_SRC=$KERNEL_PLATFORM/./msm-kernel O=$MSM/out LLVM=1 LLVM_IAS=1 DEPMOD=depmod DTC=dtc "${qcom_flags[@]}" INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+        for MODULE in "${EXT_QCOM[@]}"; do
+            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" modules
+            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
         done
 
     - name: Filter modules
