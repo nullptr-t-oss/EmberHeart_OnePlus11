@@ -265,7 +265,8 @@ runs:
         # Other configs
         ./scripts/config --file arch/arm64/configs/gki_defconfig \
           --module CONFIG_MAC80211_LEDS \
-          --module CONFIG_CAN_SLCAN
+          --module CONFIG_CAN_SLCAN \
+          --disable CONFIG_ARM64_LSE_ATOMICS
 
     - name: Add my kernel patches to msm kernel
       if: env.SOC == 'kalama'
