@@ -425,8 +425,10 @@ runs:
 
         cd "$KERNEL_PLATFORM"
 
+        export ROOT_DIR=$KERNEL_PLATFORM
+        export KERNEL_DIR=msm-kernel
         MAKE_FLAGS+=(
-          KERNEL_SRC="$KERNEL_PLATFORM/./msm-kernel"
+          KERNEL_SRC="$ROOT_DIR/$KERNEL_DIR"
         )
         # OPLUS ext modules list
         EXT_OPLUS=($(cat "$KERNEL_PLATFORM/oplus/config/modules.ext.$KERNEL_VER.oplus"))
