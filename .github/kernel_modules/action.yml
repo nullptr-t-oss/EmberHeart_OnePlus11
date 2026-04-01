@@ -452,8 +452,33 @@ runs:
             ../vendor/qcom/opensource/wlan/qcacld-3.0
         )
 
+        export KBUILD_EXTRA_SYMBOLS="$KERNEL_PLATFORM/out/vendor/qcom/opensource/mmrm-driver/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/mm-drivers/hw_fence/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/mm-drivers/sync_fence/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/mm-drivers/msm_ext_display/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/securemsm-kernel/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/graphics-kernel/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet/core/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/wlan/qcacld-3.0/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/wlan/platform/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/camera-kernel/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/eva-kernel/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/video-driver/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/display-drivers/msm/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/aps/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/wlan/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/shs/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/perf_tether/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/perf/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/sch/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/offload/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/bt-kernel/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/dataipa/drivers/platform/msm/Module.symvers \
+		$KERNEL_PLATFORM/out/vendor/qcom/opensource/audio-kernel/Module.symvers \
+		"
+
         for MODULE in "${EXT_QCOM[@]}"; do
-            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" modules
+            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
             make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
         done
 
