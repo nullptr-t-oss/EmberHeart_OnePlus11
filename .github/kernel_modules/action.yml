@@ -17,6 +17,10 @@ inputs:
     required: true
     type: string
     default: OOS15
+  vendor_branch_or_commit:
+    required: false
+    type: string
+    default: ""
 
 runs:
   using: composite
@@ -232,7 +236,23 @@ runs:
         rm -f msm-kernel/android/abi_gki_protected_exports_* || true
         df -h
 
-    - name: Merge
+    - name: Checkout custom vendor modules and device tree branch
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd "$CONFIG"
+
+        # NOTE : we used depth 1 in repo sync so git doesn't know about other branches , so git fetch first
+        # TODO : for now I'm keeping remote as all but add a option for that in future??? because fetch all fetches all remotes including OnePlusOSS and Linaro; also instead remove depth 1 from repo sync???
+        git fetch --all --depth=1
+
+        if [[ -z "${{ inputs.vendor_branch_or_commit }}" ]]; then
+          echo "Custom branch or commit not specified, proceeding on default vendor modules and device tree branch"
+        else
+          git checkout "${{ inputs.vendor_branch_or_commit }}"
+        fi
+
+    - name: Merge vendor fragments
       shell: bash
       run: |
         set -euo pipefail
@@ -453,29 +473,29 @@ runs:
         )
 
         export KBUILD_EXTRA_SYMBOLS="$KERNEL_PLATFORM/out/vendor/qcom/opensource/mmrm-driver/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/mm-drivers/hw_fence/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/mm-drivers/sync_fence/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/mm-drivers/msm_ext_display/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/securemsm-kernel/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/graphics-kernel/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet/core/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/wlan/qcacld-3.0/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/wlan/platform/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/camera-kernel/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/eva-kernel/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/video-driver/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/display-drivers/msm/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/aps/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/wlan/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/shs/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/perf_tether/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/perf/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/sch/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/offload/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/bt-kernel/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/dataipa/drivers/platform/msm/Module.symvers \
-		$KERNEL_PLATFORM/out/vendor/qcom/opensource/audio-kernel/Module.symvers \
-		"
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/mm-drivers/hw_fence/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/mm-drivers/sync_fence/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/mm-drivers/msm_ext_display/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/securemsm-kernel/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/graphics-kernel/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet/core/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/wlan/qcacld-3.0/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/wlan/platform/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/camera-kernel/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/eva-kernel/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/video-driver/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/display-drivers/msm/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/aps/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/wlan/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/shs/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/perf_tether/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/perf/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/sch/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/datarmnet-ext/offload/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/bt-kernel/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/dataipa/drivers/platform/msm/Module.symvers \
+          $KERNEL_PLATFORM/out/vendor/qcom/opensource/audio-kernel/Module.symvers \
+          "
 
         for MODULE in "${EXT_QCOM[@]}"; do
             make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
