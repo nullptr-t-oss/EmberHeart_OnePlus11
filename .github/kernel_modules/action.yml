@@ -341,6 +341,7 @@ runs:
         export SUBARCH=arm64
         export LD=ld.lld HOSTLD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip HOSTCC=clang HOSTCXX=clang++
         export DISABLE_HERMETIC_SYSROOT=0
+        export CROSS_COMPILE="aarch64-linux-gnu-"
 
         cd "$MSM"
 
