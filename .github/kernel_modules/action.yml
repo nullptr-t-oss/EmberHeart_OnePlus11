@@ -139,7 +139,22 @@ runs:
         set -euo pipefail
         # Derive a unique build directory name
         CONFIG="$MODEL"
+        CONFIG_DIR="$GITHUB_WORKSPACE/$CONFIG"
+        ARTIFACTS_DIR="$CONFIG_DIR/artifacts"
+        ARTIFACTS_DIR_DEBUG="$CONFIG_DIR/debug/artifacts"
+        KERNEL_PLATFORM="$CONFIG_DIR/kernel_platform"
+        MSM="$KERNEL_PLATFORM/msm-kernel"
+
+        mkdir -p "$ARTIFACTS_DIR"
+        mkdir -p "$ARTIFACTS_DIR_DEBUG"
+
         echo "CONFIG=$CONFIG" >> "$GITHUB_ENV"
+        echo "CONFIG_DIR=$CONFIG_DIR" >> "$GITHUB_ENV"
+        echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> "$GITHUB_ENV"
+        echo "ARTIFACTS_DIR_DEBUG=$ARTIFACTS_DIR_DEBUG" >> "$GITHUB_ENV"
+        echo "KERNEL_PLATFORM=$KERNEL_PLATFORM" >> "$GITHUB_ENV"
+        echo "MSM=$MSM" >> "$GITHUB_ENV"
+
         # Install repo tool if missing
         REPO="/usr/local/bin/repo"
         if [ ! -x "$REPO" ]; then
@@ -180,9 +195,6 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        CONFIG_DIR="$GITHUB_WORKSPACE/$CONFIG"
-        ARTIFACTS_DIR="$CONFIG_DIR/artifacts"
-        mkdir -p "$ARTIFACTS_DIR"
         cd "$CONFIG_DIR/kernel_platform/msm-kernel"
         CONFIG_FILES=("build.config.common" "build.config.constants")
         BRANCH_LINE=""
@@ -256,8 +268,6 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        KERNEL_PLATFORM="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
-        MSM="$KERNEL_PLATFORM/msm-kernel"
         OUT=out
 
         cd "$MSM"
@@ -275,8 +285,6 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        KERNEL_PATH="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
-        MSM="$KERNEL_PATH/msm-kernel"
         cd "$MSM"
         
         # Realtek drivers
@@ -334,17 +342,13 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        KERNEL_PATH="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
-        MSM="$KERNEL_PATH/msm-kernel"
         cd "$MSM"
-        curl -LSs "https://raw.githubusercontent.com/Poko-Apps/MemKernel/main/kernel/setup.sh" | bash -s M br0k3n
+        curl -LSs "https://raw.githubusercontent.com/Poko-Apps/MemKernel/main/kernel/setup.sh" | bash -s M mem-kernel
 
     - name: Add rtw88 modules
       shell: bash
       run: |
         set -euo pipefail
-        KERNEL_PATH="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
-        MSM="$KERNEL_PATH/msm-kernel"
         cd "$MSM/drivers/net/wireless/realtek/"
         rm -rf rtw88
         git clone https://github.com/lwfinger/rtw88.git
@@ -355,9 +359,8 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        KP="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
         CLANG_FOUND=false
-        for base in "$KP/prebuilts" "$KP/prebuilts-master"; do
+        for base in "$KERNEL_PLATFORM/prebuilts" "$KERNEL_PLATFORM/prebuilts-master"; do
           [ -d "$base/clang/host/linux-x86" ] || continue
           latest=$(ls -d "$base"/clang/host/linux-x86/clang-r*/ 2>/dev/null | sort -V | tail -n1 || true)
           if [ -n "$latest" ] && [ -x "$latest/bin/clang" ]; then
@@ -380,8 +383,6 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        KERNEL_PLATFORM="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
-        MSM="$KERNEL_PLATFORM/msm-kernel"
         cd "$MSM"
 
         export PATH="${CLANG_BIN_PATH}:$PATH" 
@@ -444,7 +445,7 @@ runs:
         # OPLUS ext modules
         for MODULE in "${EXT_OPLUS[@]}"; do
             make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
-            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
         done
 
         # QCOM ext modules
@@ -482,7 +483,7 @@ runs:
 
         for MODULE in "${EXT_QCOM[@]}"; do
             make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
-            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
             export KBUILD_EXTRA_SYMBOLS=$(find "$KERNEL_PLATFORM/vendor" -name "Module.symvers" | tr '\n' ' ')
         done
 
@@ -490,9 +491,6 @@ runs:
       id: create_vendor_dlkm
       shell: bash
       run: |
-        CONFIG_DIR="$GITHUB_WORKSPACE/$CONFIG"
-        KERNEL_PLATFORM="$CONFIG_DIR/kernel_platform"
-        MSM="$KERNEL_PLATFORM/msm-kernel"
         OUT="$MSM/out"
         UNAME=$(ls "$OUT/lib/modules/")
         DLKM_STAGING_DIR="$OUT/vendor_dlkm_staging"
@@ -515,7 +513,7 @@ runs:
         cat "$OUT/lib/modules/$UNAME/modules.order" >> "$modules_order"
         find "$OUT/lib/modules/$UNAME/extra" -type f -name 'modules.order*' -exec cat {} >> "$modules_order" \;
         sed -i 's/.*\///g' "$modules_order"
-        cp "$modules_order" "$CONFIG_DIR/debug/artifacts/modules.order"
+        cp "$modules_order" "$ARTIFACTS_DIR_DEBUG/modules.order"
 
         # Apply depmod and copy required artifacts
         cd "$DEPMOD_DIR"
@@ -558,8 +556,6 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        KERNEL_PLATFORM="$GITHUB_WORKSPACE/$CONFIG/kernel_platform"
-        MSM="$KERNEL_PLATFORM/msm-kernel"
         OUT="$MSM/out"
         UNAME=$(ls "$OUT/lib/modules/")
 
@@ -589,9 +585,6 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        CONFIG_DIR="$GITHUB_WORKSPACE/$CONFIG"
-        KERNEL_PLATFORM="$CONFIG_DIR/kernel_platform"
-        MSM="$KERNEL_PLATFORM/msm-kernel"
         OUT="$MSM/out"
         MODULES_SRC="$OUT/modules"
         MODULES_ZIP="$CONFIG_DIR/artifacts/kernel_modules_${{ env.MODEL }}.zip"
