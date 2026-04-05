@@ -422,7 +422,7 @@ runs:
         echo "Building kernel modules..."
         make "${MAKE_FLAGS[@]}" O=$OUT olddefconfig
         make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" modules
-        make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
+        make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
 
         cd "$KERNEL_PLATFORM"
 

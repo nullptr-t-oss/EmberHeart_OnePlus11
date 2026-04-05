@@ -924,7 +924,7 @@ runs:
         echo "Starting build with $(nproc --all) threads..."
         make "${MAKE_FLAGS[@]}" O="$OUT" olddefconfig
         make -j$(nproc --all) "${MAKE_FLAGS[@]}" KCFLAGS="$KCFLAGS" KCPPFLAGS="$KCPPFLAGS" O="$OUT" Image modules
-        make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
+        make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
 
         IMG="$OUT/arch/arm64/boot/Image"
         if [ ! -f "$IMG" ]; then
