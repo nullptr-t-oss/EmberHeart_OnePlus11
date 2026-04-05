@@ -1092,7 +1092,7 @@ runs:
         cd "$DLKM_STAGING_DIR"
         mkdir -p etc
         cd etc
-        curl -L -o build.prop https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/prebuilts/system_dlkm/build.prop
+        curl -L -o build.prop https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/prebuilts/$MODEL/system_dlkm/build.prop
         touch fs_config_dirs fs_config_files
 
         cd "$OUT"
