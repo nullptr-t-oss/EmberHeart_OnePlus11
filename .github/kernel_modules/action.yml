@@ -431,6 +431,9 @@ runs:
         export BOARD_PLATFORM=kalama
         export ROOT_DIR=$KERNEL_PLATFORM
         export KERNEL_DIR=msm-kernel
+        export MODNAME=audio_dlkm
+        export OPLUS_ARCH_EXTENDS=y
+        export KERNEL_BUILD=0
 
         MAKE_FLAGS+=(
           KERNEL_SRC="$ROOT_DIR/$KERNEL_DIR"
