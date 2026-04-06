@@ -528,7 +528,7 @@ runs:
         # add prebuilt files
         cd "$DLKM_STAGING_ROOT"
         curl -L -o modules.load "$PREBUILTS/vendor_dlkm/modules.load"
-        curl -L "$PREBUILTS/vendor_dlkm/modules.load.extra >> modules.load"
+        curl -L "$PREBUILTS/vendor_dlkm/modules.load.extra" >> modules.load
         curl -L -o modules.blocklist "$PREBUILTS/vendor_dlkm/modules.blocklist"
         curl -L -o system_dlkm.modules.blocklist "$PREBUILTS/vendor_dlkm/system_dlkm.modules.blocklist"
 
