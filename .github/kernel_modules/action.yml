@@ -384,6 +384,8 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+        ./kernel_platform/oplus/build/oplus_build.sh "$SOC" gki thin all true 2>&1 |tee build.log
+        exit 1
         cd "$MSM"
 
         export PATH="${CLANG_BIN_PATH}:$PATH" 
