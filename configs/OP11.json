@@ -2,6 +2,7 @@
   "model": "OP11",
   "soc": "kalama",
   "branch": "oneplus/sm8550",
+  "boot_partition_size": "201326592",
   "manifest_oos14": "oneplus_11_u.xml",
   "manifest_oos14_modules": "oneplus_11_u.xml",
   "manifest_oos15": "oneplus_11_v.xml",

@@ -1037,30 +1037,34 @@ runs:
       run: |
         set -euo pipefail
         echo "::group::Creating boot image..."
-        IMAGE="$COMMON/out/arch/arm64/boot/Image"
+        OUT="$COMMON/out"
+        IMAGE="$OUT/arch/arm64/boot/Image"
+        MKBOOTIMG="$KERNEL_PLATFORM/tools/mkbootimg/mkbootimg.py"
 
-        cd "$GITHUB_WORKSPACE"
-        mkdir -p boot
-        # Download stock boot image
-        wget https://github.com/${GITHUB_REPOSITORY}/raw/refs/heads/main/tools/boot.zip
-        unzip boot.zip
-        # Download magiskboot binary
-        wget https://github.com/magojohnji/magiskboot-linux/raw/refs/heads/main/x86_64/magiskboot
+        export PATH="$KERNEL_PLATFORM/build/build-tools/path/linux-x86:$PATH"
 
-        BOOT=$(ls | grep -E '*.img')
-        MAGISKBOOT="./magiskboot"
+        MKBOOTIMG_ARGS=(
+          "--header_version" "4"
+          "--os_version" "13.0.0"
+          "--os_patch_level" "2026-01-01"
+          "--pagesize" "4096"
+          "--kernel" "$IMAGE"
+          "--output" "$OUT/boot.img"
+        )
 
-        chmod +x $MAGISKBOOT
+        echo "Creating boot image"
+        "$MKBOOTIMG" "${MKBOOTIMG_ARGS[@]}"
 
-        echo -n "Unpacking boot image..."
-        $MAGISKBOOT unpack $BOOT
-        echo -n "Adding kernel to boot image..."
-        mv -f $IMAGE kernel
-        echo -n "Repacking boot image..."
-        $MAGISKBOOT repack $BOOT
+        echo "Signing boot image"
 
-        mv -f new-boot.img EmberHeart_boot.img
-        cp EmberHeart_boot.img "$ARTIFACTS_DIR"
+        avbtool add_hash_footer \
+          --partition_name boot \
+          --partition_size "$BOOT_PARTITION_SIZE" \
+          --image "$OUT/boot.img" \
+          --algorithm "SHA256_RSA4096" \
+          --key "$KERNEL_PLATFORM/tools/mkbootimg/gki/testdata/testkey_rsa4096.pem"
+
+        cp "$OUT/boot.img" "$ARTIFACTS_DIR"
 
         echo "Boot image created ✅"
         echo "::endgroup::"
