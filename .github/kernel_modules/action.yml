@@ -266,6 +266,7 @@ runs:
         fi
 
     - name: Merge vendor fragments
+      if: env.SOC == 'null'
       shell: bash
       run: |
         set -euo pipefail
@@ -283,6 +284,7 @@ runs:
         rm "$OUT/.config"
 
     - name: Add nethunter specfic drivers already present in kernel to be built as modules
+      if: env.SOC == 'null'
       shell: bash
       run: |
         set -euo pipefail
@@ -346,6 +348,7 @@ runs:
         curl -LSs "https://raw.githubusercontent.com/Poko-Apps/MemKernel/main/kernel/setup.sh" | bash -s M mem-kernel
 
     - name: Add rtw88 modules
+      if: env.SOC == 'null'
       shell: bash
       run: |
         set -euo pipefail
