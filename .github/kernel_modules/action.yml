@@ -385,7 +385,7 @@ runs:
       run: |
         set -euo pipefail
         cd "$CONFIG_DIR"
-        ./kernel_platform/oplus/build/oplus_build.sh "$SOC" gki thin all true 2>&1 |tee build.log
+        LTO=thin ./kernel_platform/oplus/build/oplus_build_kernel.sh "$SOC" gki
         exit 1
         cd "$MSM"
 
