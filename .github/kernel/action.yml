@@ -1056,7 +1056,7 @@ runs:
         MKBOOTIMG_ARGS=(
           "--header_version" "4"
           "--os_version" "13.0.0"
-          "--os_patch_level" "2026-01-01"
+          "--os_patch_level" "2099-12-01"
           "--pagesize" "4096"
           "--kernel" "$IMAGE"
           "--output" "$OUT/boot.img"
