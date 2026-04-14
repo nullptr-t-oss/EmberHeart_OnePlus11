@@ -1015,7 +1015,7 @@ runs:
         cd "$GITHUB_WORKSPACE/AnyKernel3"
 
         sed -i '7 c\kernel.string=EmberHeart Kernel by nullptr-t-oss' anykernel.sh
-        curl https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/banner > banner
+        curl -s https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/banner > banner
 
         ZIP_NAME="AnyKernel3_${MODEL}_${{ env.KERNEL_FULL_VER }}_Next_${KSUVER}_SuSFS_${SUSVER}.zip"
 
@@ -1098,7 +1098,7 @@ runs:
         cd "$DLKM_STAGING_DIR"
         mkdir -p etc
         cd etc
-        curl -L -o build.prop "$PREBUILTS/system_dlkm/build.prop"
+        curl -sL -o build.prop "$PREBUILTS/system_dlkm/build.prop"
         touch fs_config_dirs fs_config_files
 
         cd "$OUT"

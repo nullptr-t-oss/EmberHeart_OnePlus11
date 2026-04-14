@@ -323,7 +323,7 @@ runs:
 
         # Other configs
         ./scripts/config --file arch/arm64/configs/gki_defconfig \
-          --module CONFIG_MAC80211_LEDS \
+          --enable CONFIG_MAC80211_LEDS \
           --module CONFIG_CAN_SLCAN
 
     - name: Add my kernel patches to msm kernel
@@ -380,7 +380,7 @@ runs:
         echo "CLANG_VERSION=$CLANG_VERSION" >> "$GITHUB_ENV"
         echo "Detected Clang: $CLANG_VERSION"
 
-    - name: Build Kernel Modules 
+    - name: Build Kernel Modules and Dtbs
       shell: bash
       run: |
         set -euo pipefail
@@ -388,6 +388,7 @@ runs:
 
         export PATH="${CLANG_BIN_PATH}:$PATH" 
         export PATH="/usr/lib/ccache:$PATH"
+        export PATH="$KERNEL_PLATFORM/build/build-tools/path/linux-x86:$PATH"
 
         MAKE_FLAGS+=(
           LLVM=1
@@ -402,7 +403,8 @@ runs:
           OBJCOPY=llvm-objcopy
           OBJDUMP=llvm-objdump
           DEPMOD=depmod
-          DTC=dtc
+          DTC="$KERNEL_PLATFORM/build/kernel/build-tools/path/linux-x86/dtc"
+          DTC_FLAGS="-@"
           STRIP=llvm-strip
           HOSTCC=clang
           HOSTCXX=clang++
@@ -411,6 +413,10 @@ runs:
 
         OUT=out
         INSTALL_MOD_PATH="$MSM/out"
+        INSTALL_DTBS_PATH="$MSM/$OUT/dtbs_staging"
+        export MSM_ARCH="$SOC"
+        DTB_TYPES="$MSM_ARCH-overlays-"
+
         mkdir -p "$OUT"
         make "${MAKE_FLAGS[@]}" O="$OUT" gki_defconfig
         
@@ -421,10 +427,11 @@ runs:
             --enable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE \
             --disable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3
 
-        echo "Building kernel modules..."
+        echo "Building kernel modules and dtbs..."
         make "${MAKE_FLAGS[@]}" O=$OUT olddefconfig
-        make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" modules
+        make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" modules dtbs
         make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
+        make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" INSTALL_DTBS_PATH="$INSTALL_DTBS_PATH" DTB_TYPES="$DTB_TYPES" dtbs_install
 
         cd "$KERNEL_PLATFORM"
 
@@ -494,7 +501,120 @@ runs:
         # To be used for preparing modules.order in create_vendor_dlkm step
         EXT_MODULES=("${EXT_OPLUS[@]#../}" "${EXT_QCOM[@]#../}") >> "$GITHUB_ENV"
 
-    - name: Create vendor_dlkm Image
+    - name: Create dtb.img
+      id: create_dtb
+      shell: bash
+      run: |
+        OUT="$MSM/out"
+        DTB_FILE_LIST=$(find "$OUT/dtbs_staging" -name "*.dtb" | sort)
+
+        cat $DTB_FILE_LIST > "$OUT/dtb.img"
+        cp -r "$OUT/dtbs_staging/" "$ARTIFACTS_DIR_DEBUG"
+
+    - name: Create vendor_boot
+      id: create_vendor_boot
+      shell: bash
+      run: |
+        PREBUILTS="https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/prebuilts/$MODEL"
+        MKBOOTIMG="$KERNEL_PLATFORM/tools/mkbootimg/mkbootimg.py"
+        OUT="$MSM/out"
+        UNAME=$(ls "$OUT/lib/modules/")
+        MODULES_STAGING_ROOT="$OUT/lib/modules/$UNAME"
+        VNDR_BOOT_STAGING_DIR="$OUT/vendor_boot_staging"
+        RAMDISK_STAGING_DIR="$VNDR_BOOT_STAGING_DIR/ramdisk"
+        RAMDISK_STAGING_MODULES="$RAMDISK_STAGING_DIR/lib/modules"
+        DEPMOD_DIR="$RAMDISK_STAGING_DIR"
+        # After depmod delete this dir since ramdisk is flattened
+        DEPMOD_DIR_ROOT="$VNDR_BOOT_STAGING_DIR/ramdisk/lib/modules/$UNAME"
+
+        export PATH="$KERNEL_PLATFORM/build/build-tools/path/linux-x86:$PATH"
+
+        # Create folder of highest depth amongst all
+        mkdir -p "$DEPMOD_DIR_ROOT"
+
+        # add prebuilt files
+        cd "$RAMDISK_STAGING_MODULES"
+        curl -sL -o modules.load "$PREBUILTS/vendor_boot/vendor_ramdisk/modules.load"
+        curl -sL -o modules.load.recovery "$PREBUILTS/vendor_boot/vendor_ramdisk/modules.load.recovery"
+        curl -sL -o modules.blocklist "$PREBUILTS/vendor_boot/vendor_ramdisk/modules.blocklist"
+
+        ramdisk_modules="$(mktemp)"
+        curl -sL "$PREBUILTS/vendor_boot/vendor_ramdisk/ramdisk_modules.txt" >> "$ramdisk_modules"
+        # copy modules to DEPMOD_DIR_ROOT
+        # NOTE: do depmod from DEPMOD_DIR
+        cd "$MODULES_STAGING_ROOT"
+        missing_modules=$(mktemp)
+        while IFS= read -r module || [ -n "$module" ]; do
+          module_path=$(find . -name "$module" -print -quit)
+          if [ -n "$module_path" ]; then
+            cp "$module_path" "$DEPMOD_DIR_ROOT"
+          else
+            # TODO: use prebuilt modules pulled from stock ROM
+            echo "WARNING: $module not found"
+            echo "$module" >> "$missing_modules"
+          fi
+        done < "$ramdisk_modules"
+
+        # Apply depmod and copy required artifacts
+        cd "$DEPMOD_DIR"
+        depmod -F "$OUT/System.map" -b . "$UNAME"
+        cp -p "$DEPMOD_DIR_ROOT"/modules.{alias,dep,softdep} "$RAMDISK_STAGING_MODULES"
+
+        # Copy modules from depmod dir and delete the dir since vendor dlkm is flattened
+        find "$DEPMOD_DIR_ROOT" -type f -name '*.ko' -exec cp {} "$RAMDISK_STAGING_MODULES/" \;
+        rm -rf "$DEPMOD_DIR_ROOT"
+
+        # Add additional files that will go into ramdisk
+        mkdir -p "$RAMDISK_STAGING_DIR/first_stage_ramdisk"
+        cd "$RAMDISK_STAGING_DIR/first_stage_ramdisk"
+        curl -sL -o fstab.qcom "$PREBUILTS/vendor_boot/vendor_ramdisk/first_stage_ramdisk/fstab.qcom"
+
+        cd "$VNDR_BOOT_STAGING_DIR"
+
+         # Create cpio compressed ramdisk using mkbootfs; use cpio like cyberknight777 did in his YAKB??
+        mkbootfs "$RAMDISK_STAGING_DIR" > "$OUT/ramdisk.cpio"
+
+        curl -sL -o "$OUT/vendor-bootconfig.img" "$PREBUILTS/vendor_boot/bootconfig"
+
+        # Note : prebuilt vendor cmdline already contains bootconfig , so no need to append it!
+        VENDOR_CMDLINE=$(curl -sL "$PREBUILTS/vendor_boot/cmdline.txt")
+
+        # add fstab and create cpio compressed archive
+        MKBOOTIMG_ARGS=(
+          "--header_version" "4"
+          "--pagesize" "4096"
+          "--vendor_cmdline" "$VENDOR_CMDLINE"
+          "--dtb" "$OUT/dtb.img"
+          "--vendor_bootconfig" "$OUT/vendor-bootconfig.img"
+          "--vendor_boot" "$OUT/vendor_boot.img"
+          "--vendor_ramdisk" "$OUT/ramdisk.cpio"
+        )
+
+        echo "Creating boot image"
+        "$MKBOOTIMG" "${MKBOOTIMG_ARGS[@]}"
+
+        echo "Signing boot image"
+
+        avbtool add_hash_footer \
+          --partition_name boot \
+          --partition_size "$VENDOR_BOOT_PARTITION_SIZE" \
+          --image "$OUT/vendor_boot.img" \
+          --algorithm "SHA256_RSA4096" \
+          --key "$KERNEL_PLATFORM/tools/mkbootimg/gki/testdata/testkey_rsa4096.pem"
+
+        cp "$RAMDISK_STAGING_MODULES/modules.load" "$OUT/vendor_boot.modules.load"
+        cp "$RAMDISK_STAGING_MODULES/modules.load.recovery" "$OUT/vendor_boot.modules.load.recovery"
+
+        cp "$OUT/vendor_boot.img" "$ARTIFACTS_DIR"
+        cp "$OUT/vendor_boot.modules.load" "$ARTIFACTS_DIR"
+        cp "$OUT/vendor_boot.modules.load" "$ARTIFACTS_DIR_DEBUG"
+        cp "$OUT/vendor_boot.modules.load.recovery" "$ARTIFACTS_DIR"
+        cp "$OUT/vendor_boot.modules.load.recovery" "$ARTIFACTS_DIR_DEBUG"
+        cp "$OUT/ramdisk.cpio" "$ARTIFACTS_DIR_DEBUG"
+        cp "$OUT/vendor-bootconfig.img" "ARTIFACTS_DIR_DEBUG"
+        cp "$missing_modules" "$ARTIFACTS_DIR_DEBUG/vendor_boot.modules.load.missing"
+
+    - name: Create vendor_dlkm
       id: create_vendor_dlkm
       shell: bash
       run: |
@@ -515,10 +635,10 @@ runs:
 
         # add prebuilt files
         cd "$DLKM_STAGING_ROOT"
-        curl -L -o modules.load "$PREBUILTS/vendor_dlkm/modules.load"
-        curl -L "$PREBUILTS/vendor_dlkm/modules.load.extra" >> modules.load
-        curl -L -o modules.blocklist "$PREBUILTS/vendor_dlkm/modules.blocklist"
-        curl -L -o system_dlkm.modules.blocklist "$PREBUILTS/vendor_dlkm/system_dlkm.modules.blocklist"
+        curl -sL -o modules.load "$PREBUILTS/vendor_dlkm/modules.load"
+        curl -sL "$PREBUILTS/vendor_dlkm/modules.load.extra" >> modules.load
+        curl -sL -o modules.blocklist "$PREBUILTS/vendor_dlkm/modules.blocklist"
+        curl -sL -o system_dlkm.modules.blocklist "$PREBUILTS/vendor_dlkm/system_dlkm.modules.blocklist"
 
         # copy modules to DEPMOD_DIR_ROOT
         # NOTE: do depmod from DEPMOD_DIR
@@ -560,7 +680,7 @@ runs:
         cd "$DLKM_STAGING_DIR"
         mkdir -p etc
         cd etc
-        curl -L -o build.prop "$PREBUILTS/vendor_dlkm/build.prop"
+        curl -sL -o build.prop "$PREBUILTS/vendor_dlkm/build.prop"
         touch fs_config_dirs fs_config_files
 
         cd "$OUT"
@@ -576,7 +696,7 @@ runs:
         cp "$OUT/vendor_dlkm.img" "$ARTIFACTS_DIR"
         cp "$OUT/vendor_dlkm.modules.load" "$ARTIFACTS_DIR"
         cp "$OUT/vendor_dlkm.modules.load" "$ARTIFACTS_DIR_DEBUG"
-        cp "$missing_modules" "$ARTIFACTS_DIR_DEBUG/modules.load.missing"
+        cp "$missing_modules" "$ARTIFACTS_DIR_DEBUG/vendor_dlkm.modules.load.missing"
 
     - name: Filter modules
       shell: bash
@@ -594,7 +714,7 @@ runs:
         echo "Removing unnecessary modules..."
         cd modules
         # Download default module list
-        curl -L -o default_modules.txt https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/default_modules.txt
+        curl -sL -o default_modules.txt https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/default_modules.txt
         # Remove modules in the default list
 
         while IFS= read -r module; do
