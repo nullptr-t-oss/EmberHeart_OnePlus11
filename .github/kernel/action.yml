@@ -164,8 +164,8 @@ runs:
         ARTIFACTS_DIR_DEBUG="$CONFIG_DIR/debug/artifacts"
         KERNEL_PLATFORM="$CONFIG_DIR/kernel_platform"
         COMMON="$KERNEL_PLATFORM/common"
-        KERNEL_PATCHES="$GITHUB_WORKSPACE/kernel_patches"
-
+        WILD_KERNEL_PATCHES="$GITHUB_WORKSPACE/kernel_patches"
+        KERNEL_PATCHES="$GITHUB_WORKSPACE/my_patches"
         echo "Creating folder for configuration: $CONFIG"
         mkdir -p "$CONFIG"
 
@@ -178,6 +178,7 @@ runs:
         echo "ARTIFACTS_DIR_DEBUG=$ARTIFACTS_DIR_DEBUG" >> "$GITHUB_ENV"
         echo "KERNEL_PLATFORM=$KERNEL_PLATFORM" >> "$GITHUB_ENV"
         echo "COMMON=$COMMON" >> "$GITHUB_ENV"
+        echo "WILD_KERNEL_PATCHES=$WILD_KERNEL_PATCHES" >> "$GITHUB_ENV"
         echo "KERNEL_PATCHES=$KERNEL_PATCHES" >> "$GITHUB_ENV"
 
         # Install repo tool if missing
@@ -390,13 +391,13 @@ runs:
             cd ./KernelSU-Next
             cp ../../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
             patch -p1 --forward --fuzz=3 < 10_enable_susfs_for_ksu.patch  || true
-            cp "$KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_apk_sign.c.patch" ./
+            cp "$WILD_KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_apk_sign.c.patch" ./
             patch -p1 --forward --fuzz=3 < fix_apk_sign.c.patch
-            cp "$KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_core_hook.c.patch" ./
+            cp "$WILD_KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_core_hook.c.patch" ./
             patch -p1 --forward --fuzz=3 < fix_core_hook.c.patch
-            cp "$KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_selinux.c.patch" ./
+            cp "$WILD_KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_selinux.c.patch" ./
             patch -p1 --forward --fuzz=3 < fix_selinux.c.patch
-            cp "$KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_ksud.c.patch" ./
+            cp "$WILD_KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_ksud.c.patch" ./
             patch -p1 --forward --fuzz=3 < fix_ksud.c.patch
             ;;
           "v1.5.9"|"v1.5.10"|"v1.5.11"|"v1.5.12")
@@ -405,9 +406,9 @@ runs:
             patch -p1 --forward < 10_enable_susfs_for_ksu.patch  || true
             for file in $(find ./kernel -maxdepth 2 -name "*.rej" -printf "%f\n" | cut -d'.' -f1); do
               echo "Patching file: $file.c with fix_$file.c.patch"
-              patch -p1 --forward < "$KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_$file.c.patch"
+              patch -p1 --forward < "$WILD_KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_$file.c.patch"
             done
-            patch -p1 --forward < "$KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_kernel_compat.c.patch"
+            patch -p1 --forward < "$WILD_KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_kernel_compat.c.patch"
             ;;
           "v2.0.0")
             cd ./KernelSU-Next
@@ -417,29 +418,29 @@ runs:
 
             for file in $(find ./kernel -maxdepth 2 -name "*.rej" -exec basename {} .rej \;); do
               echo "Patching file: $file with fix_$file.patch"
-              patch -p1 --forward < "$KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_$file.patch"
+              patch -p1 --forward < "$WILD_KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_$file.patch"
             done
             echo "Patching Hook Mode!"
-            patch -p1 --forward < "$KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/overwrite_hook_mode.patch"
+            patch -p1 --forward < "$WILD_KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/overwrite_hook_mode.patch"
             echo "Patching KSU_TOOLKIT Support for SuSFS kernel!"
-            patch -p1 --forward < "$KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/ksu_toolkit.patch"
+            patch -p1 --forward < "$WILD_KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/ksu_toolkit.patch"
             ;;
           "v2.1.0")
             cd ./KernelSU-Next
             patch -p1 --forward < "../../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" || true
             for file in $(find ./kernel -maxdepth 2 -name "*.rej" -exec basename {} .rej \;); do
               echo "Patching file: $file with fix_$file.patch"
-              patch -p1 --forward < "$KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_$file.patch"
+              patch -p1 --forward < "$WILD_KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/fix_$file.patch"
             done
             echo "Patching Hook Mode!"
-            patch -p1 --forward < "$KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/overwrite_hook_mode.patch"
+            patch -p1 --forward < "$WILD_KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/overwrite_hook_mode.patch"
             echo "Patching KSU_TOOLKIT Support for SusFS kernel!"
-            patch -p1 --forward < "$KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/ksu_toolkit.patch"
+            patch -p1 --forward < "$WILD_KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/ksu_toolkit.patch"
             echo "Patching Multi-manager Support for SusFS kernel!"
-            patch -p1 --forward < "$KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/multi_manager.patch"
+            patch -p1 --forward < "$WILD_KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/multi_manager.patch"
             if [ "$KSUVER" -ge 33068 ] && [ "$KSUVER" -lt 33070 ]; then
                 echo "Patching Multi-manager sepolicy Support for SusFS kernel!"
-                patch -p1 --forward < "$KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/multi_sepolicy_fix.patch"
+                patch -p1 --forward < "$WILD_KERNEL_PATCHES/next/susfs_fix_patches/$susfs_version/multi_sepolicy_fix.patch"
             fi
             ;;
           *)
@@ -511,7 +512,7 @@ runs:
         MIN_VERSION="5.16"
         if [ "$(printf '%s\n' "$KERNEL_VERSION" "$MIN_VERSION" | sort -V | head -n1)" = "$KERNEL_VERSION" ]; then
           echo "Patching ptrace!"
-          patch -p1 -F 3 < "$KERNEL_PATCHES/gki_ptrace.patch"
+          patch -p1 -F 3 < "$WILD_KERNEL_PATCHES/gki_ptrace.patch"
         else
           echo "Kernel >= $MIN_VERSION, skipping ptrace patch"
         fi
@@ -532,7 +533,7 @@ runs:
         sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' security/Kconfig
         # cd ./KernelSU-Next
         # echo "Patching BBG Enhanced Security!"
-        # patch -p1 --forward < "$KERNEL_PATCHES/common/bbg_untrusted_cred.patch"
+        # patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/bbg_untrusted_cred.patch"
         echo "BBG LSM added ✅"
         echo "::endgroup::"
 
@@ -542,7 +543,7 @@ runs:
       run: |
         set -euo pipefail
         cd "$COMMON"
-        patch -p1 < $KERNEL_PATCHES/next/scope_min_manual_hooks_v1.4.patch
+        patch -p1 < $WILD_KERNEL_PATCHES/next/scope_min_manual_hooks_v1.4.patch
 
     - name: Add KernelSU-Next and SUSFS Configuration Settings
       shell: bash
@@ -601,7 +602,7 @@ runs:
         echo "::group::Applying my patches from my repo..."
         cd "$COMMON"
 
-        for patch_file in ../../../my_patches/kernel_patches/op11/common/*.patch; do
+        for patch_file in $KERNEL_PATCHES/kernel_patches/op11/common/*.patch; do
             echo "Applying patch: $patch_file"
             patch -p1 < "$patch_file"
         done
@@ -617,31 +618,31 @@ runs:
         echo "::group::Applying patches from wild kernels..."
         cd "$COMMON"
 
-        patch -p1 --forward < "$KERNEL_PATCHES/common/mem_opt_prefetch.patch"
+        patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/mem_opt_prefetch.patch"
 
-        sed -e 's/SYM_FUNC_START(__pi_memcmp)/SYM_FUNC_START_WEAK_PI(memcmp)/' -e 's/SYM_FUNC_END(__pi_memcmp)/SYM_FUNC_END_PI(memcmp)/' -e 's/SYM_FUNC_ALIAS_WEAK(memcmp, __pi_memcmp)/EXPORT_SYMBOL_NOKASAN(memcmp)/' "$KERNEL_PATCHES/common/optimise_memcmp.patch" | patch -p1 --forward
+        sed -e 's/SYM_FUNC_START(__pi_memcmp)/SYM_FUNC_START_WEAK_PI(memcmp)/' -e 's/SYM_FUNC_END(__pi_memcmp)/SYM_FUNC_END_PI(memcmp)/' -e 's/SYM_FUNC_ALIAS_WEAK(memcmp, __pi_memcmp)/EXPORT_SYMBOL_NOKASAN(memcmp)/' "$WILD_KERNEL_PATCHES/common/optimise_memcmp.patch" | patch -p1 --forward
 
-        patch -p1 --forward < "$KERNEL_PATCHES/common/minimise_wakeup_time.patch"
-        patch -p1 --forward < "$KERNEL_PATCHES/common/int_sqrt.patch"
-        patch -p1 --forward < "$KERNEL_PATCHES/common/force_tcp_nodelay.patch"
-        patch -p1 --forward < "$KERNEL_PATCHES/common/reduce_gc_thread_sleep_time.patch"
-        patch -p1 --forward < "$KERNEL_PATCHES/common/add_timeout_wakelocks_globally.patch"
-        patch -p1 --forward < "$KERNEL_PATCHES/common/f2fs_reduce_congestion.patch"
-        patch -p1 --forward < "$KERNEL_PATCHES/common/reduce_freeze_timeout.patch"
+        patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/minimise_wakeup_time.patch"
+        patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/int_sqrt.patch"
+        patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/force_tcp_nodelay.patch"
+        patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/reduce_gc_thread_sleep_time.patch"
+        patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/add_timeout_wakelocks_globally.patch"
+        patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/f2fs_reduce_congestion.patch"
+        patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/reduce_freeze_timeout.patch"
 
-        patch -p1 -F3 --forward < "$KERNEL_PATCHES/common/add_limitation_scaling_min_freq.patch"
-        patch -p1 -F3 --forward < "$KERNEL_PATCHES/common/re_write_limitation_scaling_min_freq.patch"
-        patch -p1 -F3 --forward < "$KERNEL_PATCHES/common/adjust_cpu_scan_order.patch"
-        patch -p1 -F3 --forward < "$KERNEL_PATCHES/common/avoid_extra_s2idle_wake_attempts.patch"
-        patch -p1 -F3 --forward < "$KERNEL_PATCHES/common/disable_cache_hot_buddy.patch"
-        patch -p1 -F3 --forward < "$KERNEL_PATCHES/common/f2fs_enlarge_min_fsync_blocks.patch"
-        patch -p1 -F3 --forward < "$KERNEL_PATCHES/common/increase_ext4_default_commit_age.patch"
-        patch -p1 -F3 --forward < "$KERNEL_PATCHES/common/increase_sk_mem_packets.patch"
-        patch -p1 -F3 --forward < "$KERNEL_PATCHES/common/reduce_pci_pme_wakeups.patch"
-        patch -p1 -F3 --forward < "$KERNEL_PATCHES/common/silence_irq_cpu_logspam.patch"
-        patch -p1 -F3 --forward < "$KERNEL_PATCHES/common/silence_system_logspam.patch"
-        patch -p1 -F3 --forward < "$KERNEL_PATCHES/common/use_unlikely_wrap_cpufreq.patch"
-        patch -p1 --forward < "$KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_6_7_8.patch"
+        patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/add_limitation_scaling_min_freq.patch"
+        patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/re_write_limitation_scaling_min_freq.patch"
+        patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/adjust_cpu_scan_order.patch"
+        patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/avoid_extra_s2idle_wake_attempts.patch"
+        patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/disable_cache_hot_buddy.patch"
+        patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/f2fs_enlarge_min_fsync_blocks.patch"
+        patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/increase_ext4_default_commit_age.patch"
+        patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/increase_sk_mem_packets.patch"
+        patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/reduce_pci_pme_wakeups.patch"
+        patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/silence_irq_cpu_logspam.patch"
+        patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/silence_system_logspam.patch"
+        patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/use_unlikely_wrap_cpufreq.patch"
+        patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_6_7_8.patch"
 
         echo "Other kernel patches applied 🔥"
         echo "::endgroup::"

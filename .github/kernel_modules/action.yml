@@ -144,6 +144,7 @@ runs:
         ARTIFACTS_DIR_DEBUG="$CONFIG_DIR/debug/artifacts"
         KERNEL_PLATFORM="$CONFIG_DIR/kernel_platform"
         MSM="$KERNEL_PLATFORM/msm-kernel"
+        KERNEL_PATCHES="$GITHUB_WORKSPACE/my_patches"
 
         echo "Creating folder for configuration: $CONFIG"
         mkdir -p "$CONFIG"
@@ -157,6 +158,7 @@ runs:
         echo "ARTIFACTS_DIR_DEBUG=$ARTIFACTS_DIR_DEBUG" >> "$GITHUB_ENV"
         echo "KERNEL_PLATFORM=$KERNEL_PLATFORM" >> "$GITHUB_ENV"
         echo "MSM=$MSM" >> "$GITHUB_ENV"
+        echo "KERNEL_PATCHES=$KERNEL_PATCHES" >> "$GITHUB_ENV"
 
         # Install repo tool if missing
         REPO="/usr/local/bin/repo"
@@ -334,7 +336,7 @@ runs:
         echo "Applying kernel patches to msm kernel from my repo..."
         cd "$CONFIG/kernel_platform/msm-kernel"
 
-        for patch_file in ../../../my_patches/kernel_patches/op11/msm/*.patch; do
+        for patch_file in $KERNEL_PATCHES/kernel_patches/op11/msm/*.patch; do
             echo "Applying patch: $patch_file"
             patch -p1 < "$patch_file"
         done
