@@ -510,8 +510,7 @@ runs:
             echo "$PROJECT does not have expected build configuration files, skipping..."
             continue
           fi
-          make -C "../$PROJECT" M="../../$PROJECT" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" dtbs
-          make -C "../$PROJECT" M="../../$PROJECT" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_DTBS_PATH="$INSTALL_DTBS_PATH" dtbs_install
+          make -C "../$PROJECT" M="../../$PROJECT" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
         done
 
         # To be used for preparing modules.order in create_vendor_dlkm step
