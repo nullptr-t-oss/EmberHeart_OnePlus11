@@ -453,6 +453,9 @@ runs:
             CHIPSET_COMPANY=QCOM
             OPLUS_VND_BUILD_PLATFORM="$SOC"
         )
+
+        echo "Compiling vendor modules (oplus)"
+
         # OPLUS ext modules
         for MODULE in "${EXT_OPLUS[@]}"; do
             make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
@@ -492,10 +495,23 @@ runs:
 
         export KBUILD_EXTRA_SYMBOLS=""
 
+        echo "Compiling vendor modules (qcom)"
+
         for MODULE in "${EXT_QCOM[@]}"; do
             make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
-            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+            make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
             export KBUILD_EXTRA_SYMBOLS=$(find "$KERNEL_PLATFORM/vendor" -name "Module.symvers" | tr '\n' ' ')
+        done
+
+        echo "Compiling vendor devicetree overlays"
+
+        for PROJECT in $(cd "$CONFIG_DIR" && find -L vendor/ -maxdepth 4 -type d -name "*-devicetree"); do
+          if [ ! -e "../$PROJECT/Makefile" ]; then
+            echo "$PROJECT does not have expected build configuration files, skipping..."
+            continue
+          fi
+          make -C "../$PROJECT" M="../../$PROJECT" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" dtbs
+          make -C "../$PROJECT" M="../../$PROJECT" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_DTBS_PATH="$INSTALL_DTBS_PATH" dtbs_install
         done
 
         # To be used for preparing modules.order in create_vendor_dlkm step
