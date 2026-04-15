@@ -277,7 +277,7 @@ runs:
     - name: Setup ccache
       uses: hendrikmuhs/ccache-action@v1.2.19
       with:
-        key: ${{ env.CONFIG }}-kernel-${{ env.KERNEL_FULL_VER }}
+        key: ${{ env.CONFIG }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
         max-size: 5G
         append-timestamp: false
         create-symlink: true
@@ -1028,7 +1028,7 @@ runs:
         sed -i '7 c\kernel.string=EmberHeart Kernel by nullptr-t-oss' anykernel.sh
         curl -s https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/banner > banner
 
-        ZIP_NAME="AnyKernel3_${MODEL}_${{ env.KERNEL_FULL_VER }}_Next_${KSUVER}_SuSFS_${SUSVER}.zip"
+        ZIP_NAME="AnyKernel3_${MODEL}_${{ inputs.optimize_level }}_${{ env.KERNEL_FULL_VER }}_Next_${KSUVER}_SuSFS_${SUSVER}.zip"
 
         echo "Creating flashable zip: $ZIP_NAME"
         ( cd "$GITHUB_WORKSPACE/AnyKernel3" && zip -r "$ARTIFACTS_DIR/$ZIP_NAME" ./* >/dev/null )
@@ -1174,7 +1174,7 @@ runs:
       run: |
         set -euo pipefail
         echo "Deleting old ccache..."
-        gh cache delete ccache-${{ env.CONFIG }}-kernel-${{ env.KERNEL_FULL_VER }}- || true
+        gh cache delete ccache-${{ env.CONFIG }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}- || true
 
     - name: Upload Artifacts
       if: success() && steps.create_zip.conclusion == 'success'

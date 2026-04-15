@@ -229,7 +229,7 @@ runs:
     - name: Setup ccache
       uses: hendrikmuhs/ccache-action@v1.2.19
       with:
-        key: ${{ env.CONFIG }}-modules-${{ env.KERNEL_FULL_VER }}
+        key: ${{ env.CONFIG }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
         max-size: 5G
         append-timestamp: false
         create-symlink: true
@@ -775,7 +775,7 @@ runs:
       run: |
         set -euo pipefail
         echo "Deleting old ccache..."
-        gh cache delete ccache-${{ env.CONFIG }}-modules-${{ env.KERNEL_FULL_VER }}- || true
+        gh cache delete ccache-${{ env.CONFIG }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}- || true
 
     - name: Upload Kernel Modules zip
       if: success() && steps.create_zip.conclusion == 'success'
