@@ -23,7 +23,6 @@ on:
         options:
           - OOS14
           - OOS15
-          - FAST_BUILD_OOS15
           - OOS16
           - OOS16_CUSTOM
         default: OOS16_CUSTOM
