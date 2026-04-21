@@ -569,7 +569,7 @@ runs:
         fi
         cd "$COMMON"
         ./scripts/config --file arch/arm64/configs/gki_defconfig --enable CONFIG_BBG
-        sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' common/security/Kconfig
+        sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' security/Kconfig
         echo "BBG LSM added ✅"
         echo "::endgroup::"
 
