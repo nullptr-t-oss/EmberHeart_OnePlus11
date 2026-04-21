@@ -1002,6 +1002,7 @@ runs:
 
         cp "$OUT/System.map" "$ARTIFACTS_DIR_DEBUG"
         cp "$OUT/Module.symvers" "$ARTIFACTS_DIR_DEBUG"
+        cp "$OUT/vmlinux" "$ARTIFACTS_DIR_DEBUG"
 
         echo "::endgroup::"
 
