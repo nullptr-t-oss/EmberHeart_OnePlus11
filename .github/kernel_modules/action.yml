@@ -25,6 +25,11 @@ inputs:
     required: false
     type: string
     default: ""
+  prebuilt_dtb:
+    description: 'Do you want to use prebuilt dtb for vndr boot?'
+    required: false
+    type: string
+    default: 'true'
 
 runs:
   using: composite
@@ -551,9 +556,20 @@ runs:
       shell: bash
       run: |
         OUT="$MSM/out"
-        DTB_FILE_LIST=$(find "$OUT/dtbs_staging" -name "*.dtb" | sort)
+        if [ "${{ inputs.prebuilt_dtb }}" = "true" ]; then
+          PREBUILTS="https://raw.githubusercontent.com/nullptr-t-oss/kernel_patches/refs/heads/main/prebuilts/$MODEL"
+          if curl -fsSL "$PREBUILTS/vendor_boot/dtb" -o "$OUT/dtb.img"; then
+              echo "Using dtb from prebuilts."
+            else
+              echo "WARNING: dtb not found from prebuilts"
+              DTB_FILE_LIST=$(find "$OUT/dtbs_staging" -name "*.dtb" | sort)
+              cat $DTB_FILE_LIST > "$OUT/dtb.img"
+            fi
+        else
+          DTB_FILE_LIST=$(find "$OUT/dtbs_staging" -name "*.dtb" | sort)
+          cat $DTB_FILE_LIST > "$OUT/dtb.img"
+        fi
 
-        cat $DTB_FILE_LIST > "$OUT/dtb.img"
         cp -r "$OUT/dtbs_staging/" "$ARTIFACTS_DIR_DEBUG"
 
     - name: Create vendor_boot
@@ -594,9 +610,12 @@ runs:
           if [ -n "$module_path" ]; then
             cp "$module_path" "$DEPMOD_DIR_ROOT"
           else
-            # TODO: use prebuilt modules pulled from stock ROM
-            echo "WARNING: $module not found"
-            echo "$module" >> "$missing_modules"
+            if curl -fsSL "$PREBUILTS/proprietary/$module" -o "$DEPMOD_DIR_ROOT/$module"; then
+              echo "Using $module from prebuilts."
+            else
+              echo "WARNING: $module not found"
+              echo "$module" >> "$missing_modules"
+            fi
           fi
         done < "$ramdisk_modules"
 
@@ -694,9 +713,12 @@ runs:
           if [ -n "$module_path" ]; then
             cp "$module_path" "$DEPMOD_DIR_ROOT"
           else
-            # TODO: use prebuilt modules pulled from stock ROM
-            echo "WARNING: $module not found"
-            echo "$module" >> "$missing_modules"
+            if curl -fsSL "$PREBUILTS/proprietary/$module" -o "$DEPMOD_DIR_ROOT/$module"; then
+              echo "Using $module from prebuilts."
+            else
+              echo "WARNING: $module not found"
+              echo "$module" >> "$missing_modules"
+            fi
           fi
         done < "$DLKM_STAGING_ROOT/modules.load"
 

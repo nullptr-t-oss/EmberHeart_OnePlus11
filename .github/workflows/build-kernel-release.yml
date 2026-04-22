@@ -71,6 +71,11 @@ on:
         description: 'Enter MSM kernel branch or commit hash'
         type: string
         default: ''
+      prebuilt_dtb:
+        description: 'Do you want to use prebuilt dtb for vndr boot?'
+        required: true
+        type: boolean
+        default: true
       model:
         description: 'Select device to be built'
         required: true
@@ -188,6 +193,7 @@ jobs:
           manifest: ${{ inputs.manifest }}
           vendor_branch_or_commit: ${{ inputs.vendor_branch_or_commit }}
           msm_branch_or_commit: ${{ inputs.msm_branch_or_commit }}
+          prebuilt_dtb: ${{ inputs.prebuilt_dtb }}
 
   trigger-release:
     needs:
