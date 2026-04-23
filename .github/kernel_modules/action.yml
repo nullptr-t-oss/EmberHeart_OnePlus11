@@ -26,7 +26,7 @@ inputs:
     type: string
     default: ""
   prebuilt_dtb:
-    description: 'Do you want to use prebuilt dtb for vndr boot?'
+    description: 'Do you want to use prebuilt dtb for vendor boot?'
     required: false
     type: string
     default: 'true'
@@ -462,11 +462,15 @@ runs:
             --enable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE \
             --disable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3
 
+        SECONDS=0
+
         echo "Building kernel modules and dtbs..."
         make "${MAKE_FLAGS[@]}" O=$OUT olddefconfig
         make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" modules dtbs
         make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
         make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" INSTALL_DTBS_PATH="$INSTALL_DTBS_PATH" DTB_TYPES="$DTB_TYPES" dtbs_install
+
+        echo "duration=$SECONDS" >> "$GITHUB_ENV"
 
         cd "$KERNEL_PLATFORM"
 
@@ -490,12 +494,15 @@ runs:
         )
 
         echo "Compiling vendor modules (oplus)"
+        SECONDS=0
 
         # OPLUS ext modules
         for MODULE in "${EXT_OPLUS[@]}"; do
             make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
             make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
         done
+
+        echo "duration_oplus_ext=$SECONDS" >> "$GITHUB_ENV"
 
         # QCOM ext modules
         EXT_QCOM+=(
@@ -531,6 +538,7 @@ runs:
         export KBUILD_EXTRA_SYMBOLS=""
 
         echo "Compiling vendor modules (qcom)"
+        SECONDS=0
 
         for MODULE in "${EXT_QCOM[@]}"; do
             make -C "$MODULE" M="../$MODULE" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
@@ -538,7 +546,10 @@ runs:
             export KBUILD_EXTRA_SYMBOLS=$(find "$KERNEL_PLATFORM/vendor" -name "Module.symvers" | tr '\n' ' ')
         done
 
+        echo "duration_qcom_ext=$SECONDS" >> "$GITHUB_ENV"
+
         echo "Compiling vendor devicetree overlays"
+        SECONDS=0
 
         for PROJECT in $(cd "$CONFIG_DIR" && find -L vendor/ -maxdepth 4 -type d -name "*-devicetree"); do
           if [ ! -e "../$PROJECT/Makefile" ]; then
@@ -547,6 +558,8 @@ runs:
           fi
           make -C "../$PROJECT" M="../../$PROJECT" -j$(nproc --all) "${MAKE_FLAGS[@]}" O=$MSM/out "${OPLUS_FLAGS[@]}"
         done
+
+        echo "duration_dtb_ext=$SECONDS" >> "$GITHUB_ENV"
 
         # To be used for preparing modules.order in create_vendor_dlkm step
         EXT_MODULES=("${EXT_OPLUS[@]#../}" "${EXT_QCOM[@]#../}") >> "$GITHUB_ENV"
@@ -581,12 +594,12 @@ runs:
         OUT="$MSM/out"
         UNAME=$(ls "$OUT/lib/modules/")
         MODULES_STAGING_ROOT="$OUT/lib/modules/$UNAME"
-        VNDR_BOOT_STAGING_DIR="$OUT/vendor_boot_staging"
-        RAMDISK_STAGING_DIR="$VNDR_BOOT_STAGING_DIR/ramdisk"
+        VENDOR_BOOT_STAGING_DIR="$OUT/vendor_boot_staging"
+        RAMDISK_STAGING_DIR="$VENDOR_BOOT_STAGING_DIR/ramdisk"
         RAMDISK_STAGING_MODULES="$RAMDISK_STAGING_DIR/lib/modules"
         DEPMOD_DIR="$RAMDISK_STAGING_DIR"
         # After depmod delete this dir since ramdisk is flattened
-        DEPMOD_DIR_ROOT="$VNDR_BOOT_STAGING_DIR/ramdisk/lib/modules/$UNAME"
+        DEPMOD_DIR_ROOT="$VENDOR_BOOT_STAGING_DIR/ramdisk/lib/modules/$UNAME"
 
         export PATH="$KERNEL_PLATFORM/build/build-tools/path/linux-x86:$PATH"
 
@@ -633,7 +646,7 @@ runs:
         cd "$RAMDISK_STAGING_DIR/first_stage_ramdisk"
         curl -sL -o fstab.qcom "$PREBUILTS/vendor_boot/vendor_ramdisk/first_stage_ramdisk/fstab.qcom"
 
-        cd "$VNDR_BOOT_STAGING_DIR"
+        cd "$VENDOR_BOOT_STAGING_DIR"
 
          # Create cpio compressed ramdisk using mkbootfs; use cpio like cyberknight777 did in his YAKB??
         mkbootfs "$RAMDISK_STAGING_DIR" > "$OUT/ramdisk.cpio"
@@ -665,6 +678,9 @@ runs:
           --image "$OUT/vendor_boot.img" \
           --algorithm "SHA256_RSA4096" \
           --key "$KERNEL_PLATFORM/tools/mkbootimg/gki/testdata/testkey_rsa4096.pem"
+
+        VENDOR_BOOT_SHA256=$(sha256sum "$OUT/vendor_boot.img" | cut -d' ' -f1)
+        echo "vendor_boot_sha256=${VENDOR_BOOT_SHA256:-ERROR}" >> "$GITHUB_OUTPUT"
 
         cp "$RAMDISK_STAGING_MODULES/modules.load" "$OUT/vendor_boot.modules.load"
         cp "$RAMDISK_STAGING_MODULES/modules.load.recovery" "$OUT/vendor_boot.modules.load.recovery"
@@ -760,6 +776,9 @@ runs:
 
         build_image "$DLKM_STAGING_DIR" "${vendor_dlkm_props_file}" "$OUT/vendor_dlkm.img" /dev/null
 
+        VENDOR_DLKM_SHA256=$(sha256sum "$OUT/vendor_dlkm.img" | cut -d' ' -f1)
+        echo "vendor_dlkm_sha256=${VENDOR_DLKM_SHA256:-ERROR}" >> "$GITHUB_OUTPUT"
+
         cp "$OUT/vendor_dlkm.img" "$ARTIFACTS_DIR"
         cp "$OUT/vendor_dlkm.modules.load" "$ARTIFACTS_DIR"
         cp "$OUT/vendor_dlkm.modules.load" "$ARTIFACTS_DIR_DEBUG"
@@ -805,19 +824,65 @@ runs:
         find "$MODULES_SRC" -type f -name '*.ko' -print0 | xargs -0 zip -j "$MODULES_ZIP"
         echo "Packaged kernel modules to $MODULES_ZIP"
 
+    - name: Format build time
+      id: build_time
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if [ "$duration" -ge 60 ]; then
+          duration="$((duration / 60))m $((duration % 60))s"
+        else
+          duration="${duration}s"
+        fi
+
+        if [ "$duration_oplus_ext" -ge 60 ]; then
+          duration_oplus_ext="$((duration_oplus_ext / 60))m $((duration_oplus_ext % 60))s"
+        else
+          duration_oplus_ext="${duration_oplus_ext}s"
+        fi
+
+        if [ "$duration_qcom_ext" -ge 60 ]; then
+          duration_qcom_ext="$((duration_qcom_ext / 60))m $((duration_qcom_ext % 60))s"
+        else
+          duration_qcom_ext="${duration_qcom_ext}s"
+        fi
+
+        if [ "$duration_dtb_ext" -ge 60 ]; then
+          duration_dtb_ext="$((duration_dtb_ext / 60))m $((duration_dtb_ext % 60))s"
+        else
+          duration_dtb_ext="${duration_dtb_ext}s"
+        fi
+
+        echo "duration=$duration" >> "$GITHUB_OUTPUT"
+        echo "duration_oplus_ext=$duration_oplus_ext" >> "$GITHUB_OUTPUT"
+        echo "duration_qcom_ext=$duration_qcom_ext" >> "$GITHUB_OUTPUT"
+        echo "duration_dtb_ext=$duration_dtb_ext" >> "$GITHUB_OUTPUT"
+
     - name: Final Build Summary
       shell: bash
       run: |
         set -euo pipefail
         {
-          echo "CCache Statistics :"
-          echo "$(/usr/bin/ccache -s)"
-        } | tee summary.txt
-        {
           echo "### Kernel Modules Build Summary"
+          echo "----"
           echo ""
-          echo "CCache Statistics :"
-          echo "$(ccache -s -v)"
+          echo "> [!NOTE]"
+          echo "> Model: ${{ env.MODEL }}"
+          echo ""
+          echo "> [!IMPORTANT]"
+          echo "> - Vendor boot SHA256: ${{ steps.create_vendor_boot.outputs.vendor_boot_sha256 }}"
+          echo "> - Vendor dlkm SHA256: ${{ steps.create_vendor_dlkm.outputs.vendor_dlkm_sha256 }}"
+          echo ""
+          echo "> [!NOTE]"
+          echo "> - Modules build time: ${{ steps.build_time.outputs.duration }}"
+          echo "> - Oplus external modules build time: ${{ steps.build_time.outputs.duration_oplus_ext }}"
+          echo "> - Qcom external modules build time: ${{ steps.build_time.outputs.duration_qcom_ext }}"
+          echo "> - External dtbo build time: ${{ steps.build_time.outputs.duration_dtb_ext }}"
+          echo ""
+          echo "> [!IMPORTANT]"
+          echo "> ## CCache Statistics :"
+          echo "> $(ccache -s -v )"
         } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Cleanup old ccache

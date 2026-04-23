@@ -341,7 +341,7 @@ runs:
         cd susfs4ksu
         if git rev-parse --verify "origin/$SUSFS_BRANCH" >/dev/null 2>&1 || git rev-parse --verify "$SUSFS_BRANCH" >/dev/null 2>&1; then
           git checkout "$SUSFS_BRANCH"
-          SUSFS_COMMIT_SHA=$(git rev-parse HEAD)
+          SUSFS_COMMIT_SHA=$(git rev-parse --short HEAD)
           echo "SUSFS_COMMIT_SHA=$SUSFS_COMMIT_SHA" >> $GITHUB_ENV
         else
           echo "Error: SUSFS branch or ref '$SUSFS_BRANCH' not found."
@@ -400,12 +400,12 @@ runs:
         fi
 
         cd ..
-        KSUN_COMMIT_SHA=$(git rev-parse HEAD)
-        echo "KSUN_COMMIT_SHA=$KSUN_COMMIT_SHA" >> $GITHUB_ENV
+        KSUN_COMMIT_SHA=$(git rev-parse --short HEAD)
+        echo "KSUN_COMMIT_SHA=${KSUN_COMMIT_SHA}" >> $GITHUB_ENV
 
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
         echo "KernelSU Next Version: $KSU_VERSION"
-        echo "KernelSU Next added (commit: ${KSUN_COMMIT_SHA:0:8}) ✅"
+        echo "KernelSU Next added (commit: ${KSUN_COMMIT_SHA}) ✅"
         echo "::endgroup::"
 
     - name: Apply SUSFS Patches
@@ -885,20 +885,6 @@ runs:
         echo "Build configs applied ✅"
         echo "::endgroup::"
 
-    - name: Save Build Metadata
-      id: save_metadata
-      shell: bash
-      run: |
-        set -euo pipefail
-        echo "::group::Saving Build Metadata..."
-        cd "$ARTIFACTS_DIR"
-        echo "kernel_version=${{ env.KERNEL_FULL_VER }}" >> "$GITHUB_OUTPUT"
-        echo "ksu_version=${KSUVER:-unknown}" >> "$GITHUB_OUTPUT"
-        echo "susfs_version=${SUSVER:-unknown}" >> "$GITHUB_OUTPUT"
-
-        echo "Build metadata saved ✅"
-        echo "::endgroup::"
-
     - name: Customize Kernel Branding
       shell: bash
       run: |
@@ -982,6 +968,7 @@ runs:
         INSTALL_MOD_PATH="$COMMON/out"
         mkdir -p "$OUT"
         make "${MAKE_FLAGS[@]}" O="$OUT" gki_defconfig
+        echo "kernel_release=$(make "${MAKE_FLAGS[@]}" O="$OUT" -s kernelrelease)" >> "$GITHUB_ENV"
 
         if [ "${{ inputs.optimize_level }}" = "O3" ]; then
           KCFLAGS_EXTRA="-O3"
@@ -1002,9 +989,13 @@ runs:
         KCPPFLAGS="-DCONFIG_OPTIMIZE_INLINING"
 
         echo "Starting build with $(nproc --all) threads..."
+        SECONDS=0
+
         make "${MAKE_FLAGS[@]}" O="$OUT" olddefconfig
         make -j$(nproc --all) "${MAKE_FLAGS[@]}" KCFLAGS="$KCFLAGS" KCPPFLAGS="$KCPPFLAGS" O="$OUT" Image modules
         make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
+
+        echo "duration=$SECONDS" >> "$GITHUB_ENV"
 
         IMG="$OUT/arch/arm64/boot/Image"
         if [ ! -f "$IMG" ]; then
@@ -1110,6 +1101,7 @@ runs:
 
     - name: Create Boot Image
       if: success() && steps.create_zip.conclusion == 'success'
+      id: create_boot
       shell: bash
       run: |
         set -euo pipefail
@@ -1142,6 +1134,8 @@ runs:
           --key "$KERNEL_PLATFORM/tools/mkbootimg/gki/testdata/testkey_rsa4096.pem"
 
         cp "$OUT/boot.img" "$ARTIFACTS_DIR"
+        BOOT_SHA256=$(sha256sum "$OUT/boot.img" | cut -d' ' -f1)
+        echo "boot_sha256=${BOOT_SHA256:-ERROR}" >> "$GITHUB_OUTPUT"
 
         echo "Boot image created ✅"
         echo "::endgroup::"
@@ -1192,47 +1186,57 @@ runs:
             --partition_name system_dlkm \
             --image "$OUT/system_dlkm.img"
 
+        SYSTEM_DLKM_SHA256=$(sha256sum "$OUT/system_dlkm.img" | cut -d' ' -f1)
+        echo "system_dlkm_sha256=${SYSTEM_DLKM_SHA256:-ERROR}" >> "$GITHUB_OUTPUT"
+
         cp "$OUT/system_dlkm.img" "$ARTIFACTS_DIR"
         cp "$OUT/system_dlkm.modules.load" "$ARTIFACTS_DIR"
         cp "$OUT/system_dlkm.modules.load" "$ARTIFACTS_DIR_DEBUG"
+
+    - name: Format build time
+      id: build_time
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if [ "$duration" -ge 60 ]; then
+          duration="$((duration / 60))m $((duration % 60))s"
+        else
+          duration="${duration}s"
+        fi
+
+        echo "duration=$duration" >> "$GITHUB_OUTPUT"
 
     - name: Final Build Summary
       shell: bash
       run: |
         set -euo pipefail
         {
-          echo "Model: ${MODEL}"
-          echo "Android: ${{ env.ANDROID_RELEASE }}"
-          echo "Kernel base: ${{ env.KERNEL_VER }}"
-          echo "Kernel full: ${{ env.KERNEL_FULL_VER }}"
-          echo "Kernel Uname: ${{ env.KERNEL_UNAME }}"
-          echo "KSUN Version: ${KSUVER:-unknown}"
-          echo "KSUN commit SHA: ${{ env.KSUN_COMMIT_SHA }}"
-          echo "SUSFS Version: ${SUSVER:-unknown}"
-          echo "SUSFS commit SHA: ${{ env.SUSFS_COMMIT_SHA }}"
-          echo "Optimization: ${{ inputs.optimize_level }}"
-          echo "Image SHA256: ${{ steps.collect_stats.outputs.image_sha256 }}"
-          echo "Compiler: ${CLANG_VERSION:-unknown}"
-          echo ""
-          echo "CCache Statistics :"
-          echo "$(ccache -s -v)"
-        } | tee summary.txt
-        {
           echo "### Kernel Build Summary"
+          echo "----"
           echo ""
-          echo "- Model: ${{ env.MODEL }}"
-          echo "- Android: ${{ env.ANDROID_RELEASE }}"
-          echo "- Kernel Version: ${{ steps.save_metadata.outputs.kernel_version }}"
+          echo "> [!NOTE]"
+          echo "> Model: ${{ env.MODEL }}"
+          echo ""
+          echo "- Kernel Release: ${{ env.kernel_release }}"
           echo "- Kernel Uname: ${{ env.KERNEL_UNAME }}"
           echo "- KSUN Version: ${KSUVER:-unknown}"
           echo "- KSUN commit SHA: [${{ env.KSUN_COMMIT_SHA }}](https://github.com/KernelSU-Next/KernelSU-Next/commit/${{ env.KSUN_COMMIT_SHA }})"
           echo "- SUSFS Version: ${SUSVER:-unknown}"
           echo "- SUSFS commit SHA: [${{ env.SUSFS_COMMIT_SHA }}](https://gitlab.com/simonpunk/susfs4ksu/-/commit/${{ env.SUSFS_COMMIT_SHA }})"
           echo "- Optimization: ${{ inputs.optimize_level }}"
-          echo "- Image SHA256: ${{ steps.collect_stats.outputs.image_sha256 }}"
           echo ""
-          echo "CCache Statistics :"
-          echo "$(/usr/bin/ccache -s)"
+          echo "> [!IMPORTANT]"
+          echo "> - Kernel Image SHA256: ${{ steps.collect_stats.outputs.image_sha256 }}"
+          echo "> - Boot image SHA256: ${{ steps.create_boot.outputs.boot_sha256 }}"
+          echo "> - System dlkm image SHA256: ${{ steps.create_system_dlkm.outputs.system_dlkm_sha256 }}"
+          echo ""
+          echo "> [!NOTE]"
+          echo "> Build completed in ${{ steps.build_time.outputs.duration }}"
+          echo ""
+          echo "> [!IMPORTANT]"
+          echo "> ## CCache Statistics :"
+          echo "> $(ccache -s -v)"
         } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Cleanup old ccache
