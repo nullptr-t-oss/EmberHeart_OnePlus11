@@ -13,6 +13,11 @@ inputs:
     required: true
     type: string
     default: ""
+  use_opt_patches:
+    description: 'Do you want to add optimization patches in kernel?'
+    required: false
+    type: string
+    default: 'false'
   use_susfs:
     description: 'Do you want to add susfs in kernel?'
     required: false
@@ -671,7 +676,7 @@ runs:
         echo "::endgroup::"
 
     - name: Add other kernel patches to common kernel
-      if: env.SOC == 'kalama' && !contains(inputs.manifest, 'CUSTOM')
+      if: ${{ inputs.use_opt_patches == 'true' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -702,7 +707,6 @@ runs:
         patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/silence_irq_cpu_logspam.patch"
         patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/silence_system_logspam.patch"
         patch -p1 -F3 --forward < "$WILD_KERNEL_PATCHES/common/use_unlikely_wrap_cpufreq.patch"
-        patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_6_7_8.patch"
 
         echo "Other kernel patches applied 🔥"
         echo "::endgroup::"
@@ -792,6 +796,7 @@ runs:
         echo "::endgroup::"
 
     - name: Add Other configs
+      if: env.KERNEL_VER == '5.15'
       shell: bash
       run: |
         set -euo pipefail
@@ -802,6 +807,10 @@ runs:
           --enable CONFIG_LRU_GEN_ENABLED
 
         # Add for Droidspaces support
+        # TODO: This patch is not universal add conditions for other kernel versions!
+        #       for now Droidspaces support for kernels other than 5.15 is restricted
+        patch -p1 --forward < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_6_7_8.patch"
+
         ./scripts/config --file arch/arm64/configs/gki_defconfig \
           --enable CONFIG_SYSVIPC \
           --enable CONFIG_DEVTMPFS \

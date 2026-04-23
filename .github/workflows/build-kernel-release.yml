@@ -35,6 +35,11 @@ on:
           - OOS16
           - OOS16_CUSTOM
         default: OOS16_CUSTOM
+      use_opt_patches:
+        description: 'Do you want to add optimization patches in kernel?'
+        required: true
+        type: boolean
+        default: true
       use_susfs:
         description: 'Do you want to add susfs in kernel?'
         required: true
@@ -160,6 +165,7 @@ jobs:
         with:
           op_config_json: ${{ toJSON(matrix) }}
           ksun_branch_or_hash: ${{ inputs.ksun_branch }}
+          use_opt_patches: ${{ inputs.use_opt_patches }}
           use_susfs: ${{ inputs.use_susfs }}
           susfs_commit_hash_or_branch: ${{ inputs.susfs_branch_or_commit }}
           optimize_level: ${{ inputs.optimize_level }}
