@@ -46,15 +46,17 @@ inputs:
 
 outputs:
   kernel_version:
-    value: ${{ steps.save_metadata.outputs.kernel_version }}
-  ksu_version:
-    value: ${{ steps.save_metadata.outputs.ksu_version }}
+    value: ${{ steps.get_kernel_version.outputs.kernel_version }}
+  ksun_version:
+    value: ${{ steps.add_ksun.outputs.ksun_version }}
   susfs_version:
-    value: ${{ steps.save_metadata.outputs.susfs_version }}
-  image_sha256:
-    value: ${{ steps.collect_stats.outputs.image_sha256 }}
-  warnings:
-    value: ${{ steps.collect_stats.outputs.warnings }}
+    value: ${{ steps.add_susfs.outputs.susfs_version }}
+  kernel_sha256:
+    value: ${{ steps.collect_kernel_stats.outputs.image_sha256 }}
+  boot_sha256:
+    value: ${{ steps.create_boot.outputs.boot_sha256 }}
+  system_dlkm_sha256:
+    value: ${{ steps.create_system_dlkm.outputs.system_dlkm_sha256 }}
 
 runs:
   using: composite
@@ -271,6 +273,7 @@ runs:
         fi
 
     - name: Get Kernel Version Info
+      id: get_kernel_version
       shell: bash
       run: |
         set -euo pipefail
@@ -302,6 +305,7 @@ runs:
         echo "KERNEL_VER=$VERSION.$PATCHLEVEL" >> "$GITHUB_ENV"
         echo "KERNEL_FULL_VER=$ANDROID_RELEASE-$KERNEL_VERSION" >> "$GITHUB_ENV"
         echo "SUSFS_KERNEL_BRANCH=gki-$ANDROID_RELEASE-$VERSION.$PATCHLEVEL" >> "$GITHUB_ENV"
+        echo "kernel_version=$ANDROID_RELEASE-$KERNEL_VERSION" >> "$GITHUB_OUTPUT"
 
     - name: Set Build Identity
       shell: bash
@@ -397,6 +401,7 @@ runs:
         df -h
 
     - name: Add KernelSU Next
+      id: add_ksun
       shell: bash
       run: |
         set -euo pipefail
@@ -443,11 +448,13 @@ runs:
         echo "KSUN_COMMIT_SHA=${KSUN_COMMIT_SHA}" >> $GITHUB_ENV
 
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+        echo "ksun_version=${KSU_VERSION}" >> "$GITHUB_OUTPUT"
         echo "KernelSU Next Version: $KSU_VERSION"
         echo "KernelSU Next added (commit: ${KSUN_COMMIT_SHA}) ✅"
         echo "::endgroup::"
 
     - name: Apply SUSFS Patches
+      id: add_susfs
       if: ${{ inputs.use_susfs == 'true' }}
       shell: bash
       run: |
@@ -460,6 +467,7 @@ runs:
         cd ./KernelSU-Next
         susfs_version=$(grep '#define SUSFS_VERSION' ../common/include/linux/susfs.h | awk -F'"' '{print $2}')
         echo "SUSVER=$susfs_version" >> $GITHUB_ENV
+        echo "susfs_version=${susfs_version:-unknown}" >> $GITHUB_OUTPUT
         echo "SuSFS Version: $susfs_version"
         cd ../
         # Function to compare semantic versions
@@ -1061,7 +1069,7 @@ runs:
         echo "::endgroup::"
 
     - name: Collect Build Stats / Validate Image
-      id: collect_stats
+      id: collect_kernel_stats
       shell: bash
       run: |
         set -euo pipefail
@@ -1276,7 +1284,7 @@ runs:
           echo "- Optimization: ${{ inputs.optimize_level }}"
           echo ""
           echo "> [!IMPORTANT]"
-          echo "> - Kernel Image SHA256: ${{ steps.collect_stats.outputs.image_sha256 }}"
+          echo "> - Kernel Image SHA256: ${{ steps.collect_kernel_stats.outputs.image_sha256 }}"
           echo "> - Boot image SHA256: ${{ steps.create_boot.outputs.boot_sha256 }}"
           echo "> - System dlkm image SHA256: ${{ steps.create_system_dlkm.outputs.system_dlkm_sha256 }}"
           echo ""
