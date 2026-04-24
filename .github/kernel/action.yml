@@ -321,15 +321,36 @@ runs:
         echo "   Host: $BUILD_HOST"
         echo "::endgroup::"
 
-    - name: Setup ccache
-      uses: hendrikmuhs/ccache-action@v1.2.23
+    - name: Configure ccache & LTO caching
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        mkdir -p "$CCACHE_DIR"
+        mkdir -p "$LDCACHE_DIR"
+
+        ccache -o compression=true
+
+        # Use for ccache eviction
+        echo "ccache_start=$(date +%s)" >> "$GITHUB_ENV"
+
+    - name: Restore ccache
+      uses: actions/cache@v5
       with:
-        key: ${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
-        max-size: 5G
-        append-timestamp: false
-        create-symlink: true
-        job-summary: 'CCache stats'
-        evict-old-files: 'job'
+        path: ${{ env.CCACHE_DIR }}
+        key: ccache-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+        restore-keys: |
+          ccache-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+          ccache-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-
+
+    - name: Restore LTO cache
+      uses: actions/cache@v5
+      with:
+        path: ${{ env.LDCACHE_DIR }}
+        key: LTO-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+        restore-keys: |
+          LTO-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+          LTO-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-
 
     - name: Clone AnyKernel3 and Other Dependencies
       shell: bash
@@ -965,8 +986,6 @@ runs:
           export PATH="${CLANG_BIN_PATH}:$PATH"
         fi
 
-        export PATH="/usr/lib/ccache:$PATH"
-
         if [ "${{ inputs.optimize_level }}" = "O3" ]; then
           KCFLAGS_EXTRA="-O3"
         else
@@ -977,13 +996,17 @@ runs:
         KCFLAGS="-Wno-error -pipe -fno-stack-protector ${KCFLAGS_EXTRA}"
         KCPPFLAGS="-DCONFIG_OPTIMIZE_INLINING"
 
+        echo '#!/bin/bash' > ld-wrapper
+        echo 'ld.lld "$@" --thinlto-cache-dir=$LDCACHE_DIR --thinlto-jobs=$(nproc --all)' >> ld-wrapper
+        chmod +x ld-wrapper
+
         MAKE_FLAGS+=(
           LLVM=1
           LLVM_IAS=1
           ARCH=arm64
           SUBARCH=arm64
           CROSS_COMPILE="aarch64-linux-gnu-"
-          LD=ld.lld
+          LD="$(pwd)/ld-wrapper"
           HOSTLD=ld.lld
           AR=llvm-ar
           NM=llvm-nm
@@ -1269,8 +1292,17 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        echo "Deleting old ccache..."
-        gh cache delete ccache-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}- || true
+        # Evict untouched ccache contents
+        ccache_end=$(date +%s)
+        ccache_delta=$(( ccache_end - ccache_start ))
+        echo "[DEBUG] Deleting ccache contents older than $ccache_delta seconds"
+        ccache --evict-older-than "${ccache_delta}s"
+
+        echo "[WARNING] Deleting old LTO cache..."
+        gh cache delete LTO-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
+
+        echo "[WARNING] Deleting old ccache..."
+        gh cache delete ccache-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
 
     - name: Upload Artifacts
       if: success() && steps.create_zip.conclusion == 'success'
