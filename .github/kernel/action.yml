@@ -163,8 +163,21 @@ runs:
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
           git curl ca-certificates build-essential clang lld flex bison \
           libelf-dev libssl-dev libncurses-dev zlib1g-dev liblz4-tool \
-          libxml2-utils rsync unzip dwarves file python3 ccache
+          libxml2-utils rsync unzip dwarves file python3
         sudo apt-get clean
+        echo "::endgroup::"
+
+    - name: Install ccache with ECS by cctv18
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "::group::Install ccache with ECS"
+        wget https://github.com/nullptr-t-oss/kernel_patches/raw/refs/heads/main/bin/ccache-x86-64 -O ccache
+        sudo cp -f ./ccache /usr/bin/ccache
+        sudo chmod +x /usr/bin/ccache
+        rm -f ./ccache
+
+        echo "[DEBUG] Ccache version : $(ccache --version)"
         echo "::endgroup::"
 
     - name: Setup Base Environment
@@ -309,9 +322,9 @@ runs:
         echo "::endgroup::"
 
     - name: Setup ccache
-      uses: hendrikmuhs/ccache-action@v1.2.19
+      uses: hendrikmuhs/ccache-action@v1.2.23
       with:
-        key: ${{ env.CONFIG }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+        key: ${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
         max-size: 5G
         append-timestamp: false
         create-symlink: true
@@ -954,11 +967,22 @@ runs:
 
         export PATH="/usr/lib/ccache:$PATH"
 
+        if [ "${{ inputs.optimize_level }}" = "O3" ]; then
+          KCFLAGS_EXTRA="-O3"
+        else
+          KCFLAGS_EXTRA="-O2"
+        fi
+
+        # Consistent flags; include -pipe and disable stack protector
+        KCFLAGS="-Wno-error -pipe -fno-stack-protector ${KCFLAGS_EXTRA}"
+        KCPPFLAGS="-DCONFIG_OPTIMIZE_INLINING"
+
         MAKE_FLAGS+=(
           LLVM=1
           LLVM_IAS=1
           ARCH=arm64
           SUBARCH=arm64
+          CROSS_COMPILE="aarch64-linux-gnu-"
           LD=ld.lld
           HOSTLD=ld.lld
           AR=llvm-ar
@@ -966,11 +990,14 @@ runs:
           OBJCOPY=llvm-objcopy
           OBJDUMP=llvm-objdump
           DEPMOD=depmod
-          DTC=dtc
+          DTC="$KERNEL_PLATFORM/build/kernel/build-tools/path/linux-x86/dtc"
+          DTC_FLAGS="-@"
           STRIP=llvm-strip
-          HOSTCC=clang
-          HOSTCXX=clang++
+          HOSTCC="ccache clang"
+          HOSTCXX="ccache clang++"
           CC="ccache clang"
+          KCFLAGS="$KCFLAGS"
+          KCPPFLAGS="$KCPPFLAGS"
         )
 
         OUT=out
@@ -978,12 +1005,6 @@ runs:
         mkdir -p "$OUT"
         make "${MAKE_FLAGS[@]}" O="$OUT" gki_defconfig
         echo "kernel_release=$(make "${MAKE_FLAGS[@]}" O="$OUT" -s kernelrelease)" >> "$GITHUB_ENV"
-
-        if [ "${{ inputs.optimize_level }}" = "O3" ]; then
-          KCFLAGS_EXTRA="-O3"
-        else
-          KCFLAGS_EXTRA="-O2"
-        fi
 
         # LOCALVERSION branding
         if [ -n "${CUSTOM_LOCALVERSION:-}" ]; then
@@ -993,15 +1014,11 @@ runs:
           sed -i 's/scm_version="$(scm_version --short)"/scm_version=""/' scripts/setlocalversion
         fi
 
-        # Consistent flags; include -pipe and disable stack protector
-        KCFLAGS="-Wno-error -pipe -fno-stack-protector ${KCFLAGS_EXTRA}"
-        KCPPFLAGS="-DCONFIG_OPTIMIZE_INLINING"
-
         echo "Starting build with $(nproc --all) threads..."
         SECONDS=0
 
         make "${MAKE_FLAGS[@]}" O="$OUT" olddefconfig
-        make -j$(nproc --all) "${MAKE_FLAGS[@]}" KCFLAGS="$KCFLAGS" KCPPFLAGS="$KCPPFLAGS" O="$OUT" Image modules
+        make -j$(nproc --all) "${MAKE_FLAGS[@]}"  O="$OUT" Image modules
         make -j$(nproc --all) "${MAKE_FLAGS[@]}" O="$OUT" INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
 
         echo "duration=$SECONDS" >> "$GITHUB_ENV"
@@ -1253,7 +1270,7 @@ runs:
       run: |
         set -euo pipefail
         echo "Deleting old ccache..."
-        gh cache delete ccache-${{ env.CONFIG }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}- || true
+        gh cache delete ccache-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}- || true
 
     - name: Upload Artifacts
       if: success() && steps.create_zip.conclusion == 'success'

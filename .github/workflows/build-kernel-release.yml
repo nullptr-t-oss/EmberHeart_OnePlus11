@@ -148,9 +148,18 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_COMPILERCHECK: "content"
       CCACHE_NOHASHDIR: "true"
-      CCACHE_HARDLINK: "true"
+      CCACHE_NOHARDLINK: "true"
+      CCACHE_IGNOREOPTIONS: "--sysroot*"
+      CCACHE_DIRECT: "true"
+      CCACHE_FILECLONE: "true"
+      CCACHE_INODE_CACHE: "true"
+      CCACHE_UMASK: "002"
+      CCACHE_SLOPPINESS: "file_macro,time_macros,include_file_mtime,include_file_ctime,pch_defines,system_headers,locale,modules"
+      CCACHE_IS_KERNEL_COMPILING: "true"
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.set-op-model.outputs.matrix) }}
@@ -180,9 +189,18 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_COMPILERCHECK: "content"
       CCACHE_NOHASHDIR: "true"
-      CCACHE_HARDLINK: "true"
+      CCACHE_NOHARDLINK: "true"
+      CCACHE_IGNOREOPTIONS: "--sysroot*"
+      CCACHE_DIRECT: "true"
+      CCACHE_FILECLONE: "true"
+      CCACHE_INODE_CACHE: "true"
+      CCACHE_UMASK: "002"
+      CCACHE_SLOPPINESS: "file_macro,time_macros,include_file_mtime,include_file_ctime,pch_defines,system_headers,locale,modules"
+      CCACHE_IS_KERNEL_COMPILING: "true"
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.set-op-model.outputs.matrix) }}
