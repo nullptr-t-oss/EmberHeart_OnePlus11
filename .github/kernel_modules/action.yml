@@ -31,6 +31,12 @@ inputs:
     type: string
     default: 'true'
 
+outputs:
+  vendor_boot_sha256:
+    value: ${{ steps.create_vendor_boot.outputs.vendor_boot_sha256 }}
+  vendor_dlkm_sha256:
+    value: ${{ steps.create_vendor_dlkm.outputs.vendor_dlkm_sha256 }}
+
 runs:
   using: composite
   steps:
