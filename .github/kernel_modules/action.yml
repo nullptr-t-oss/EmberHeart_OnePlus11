@@ -17,6 +17,11 @@ inputs:
     required: true
     type: string
     default: OOS15
+  use_custom_repo_parser:
+    description: 'Do you want to use custom repo parser?'
+    required: true
+    type: string
+    default: 'false'
   vendor_branch_or_commit:
     required: false
     type: string
@@ -196,7 +201,50 @@ runs:
         fi
         echo "REPO=$REPO" >> "$GITHUB_ENV"
 
+    - name: Format Manifest URL
+      if: ${{ inputs.use_custom_repo_parser == 'true' }}
+      shell: bash
+      run: |
+        if [[ "$MANIFEST" =~ ^https?:// ]]; then
+            # It is already a full URL, pass it through
+            echo "MANIFEST=$MANIFEST" >> $GITHUB_ENV
+        else
+            # Convert it to the raw GitHub URL coz my composite action supports only URLs
+            RAW_URL="https://raw.githubusercontent.com/OnePlusOSS/kernel_manifest/${BRANCH}/${MANIFEST}"
+            echo "MANIFEST=${RAW_URL}" >> $GITHUB_ENV
+        fi
+
+    - name: Prepare string to checkout custom branch or revision on custom manifest parser
+      if: ${{ inputs.use_custom_repo_parser == 'true' }}
+      shell: bash
+      run: |
+        OVERRIDES=""
+
+        if [[ -n "${{ inputs.msm_branch_or_commit }}" ]]; then
+          # Calculate the relative path from CONFIG to MSM
+          # coz we'll use this path to find the required project to be modified in manifest
+          REL_MSM=$(realpath --relative-to="$CONFIG" "$MSM")
+          OVERRIDES="${REL_MSM}=${{ inputs.msm_branch_or_commit }}"
+          echo "[DEBUG] Calculated relative path: $REL_MSM"
+        fi
+
+        if [[ -n "${{ inputs.vendor_branch_or_commit }}" ]]; then
+          OVERRIDES="$OVERRIDES,./=${{ inputs.vendor_branch_or_commit }}"
+        fi
+
+        echo "Final override string: $OVERRIDES"
+        echo "PROJECT_OVERRIDE=$OVERRIDES" >> "$GITHUB_ENV"
+
+    - name: Download source via custom manifest parser
+      if: ${{ inputs.use_custom_repo_parser == 'true' }}
+      uses: nullptr-t-oss/turbo-repo-sync@main
+      with:
+        manifest_path: ${{ env.MANIFEST }}
+        workspace_dir: '$CONFIG'
+        project_overrides: ${{ env.PROJECT_OVERRIDE }}
+
     - name: Optimize Global Git for Repo Tool
+      if: ${{ inputs.use_custom_repo_parser == 'false' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -208,6 +256,7 @@ runs:
         git config --global index.threads $(nproc)
 
     - name: Initialize and Sync Kernel Source
+      if: ${{ inputs.use_custom_repo_parser == 'false' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -234,6 +283,7 @@ runs:
         $success || { echo "repo sync failed after 3 attempts"; exit 1; }
 
     - name: Checkout custom branch or commit hash for sources
+      if: ${{ inputs.use_custom_repo_parser == 'false' }}
       shell: bash
       run: |
         set -euo pipefail

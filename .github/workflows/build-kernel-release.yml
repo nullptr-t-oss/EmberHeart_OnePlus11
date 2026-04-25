@@ -35,6 +35,11 @@ on:
           - OOS16
           - OOS16_CUSTOM
         default: OOS16_CUSTOM
+      use_custom_repo_parser:
+        description: 'Do you want to use custom repo parser?'
+        required: true
+        type: boolean
+        default: true
       use_opt_patches:
         description: 'Do you want to add optimization patches in kernel?'
         required: true
@@ -188,6 +193,7 @@ jobs:
         with:
           op_config_json: ${{ toJSON(matrix) }}
           ksun_branch_or_hash: ${{ inputs.ksun_branch }}
+          use_custom_repo_parser: ${{ inputs.use_custom_repo_parser }}
           use_opt_patches: ${{ inputs.use_opt_patches }}
           use_susfs: ${{ inputs.use_susfs }}
           susfs_commit_hash_or_branch: ${{ inputs.susfs_branch_or_commit }}
@@ -238,6 +244,7 @@ jobs:
         with:
           op_config_json: ${{ toJSON(matrix) }}
           manifest: ${{ inputs.manifest }}
+          use_custom_repo_parser: ${{ inputs.use_custom_repo_parser }}
           vendor_branch_or_commit: ${{ inputs.vendor_branch_or_commit }}
           msm_branch_or_commit: ${{ inputs.msm_branch_or_commit }}
           prebuilt_dtb: ${{ inputs.prebuilt_dtb }}
