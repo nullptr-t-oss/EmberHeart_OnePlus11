@@ -1296,10 +1296,14 @@ runs:
           echo "> $(ccache -s -v)"
         } >> "$GITHUB_STEP_SUMMARY"
 
-    - name: Cleanup old ccache
+    - name: Cleanup old ccache & upload ccache log
       shell: bash
       run: |
         set -euo pipefail
+
+        echo "[DEBUG] Uploading ccache logs"
+        cp "$CCACHE_LOGFILE" "$ARTIFACTS_DIR_DEBUG"
+
         # Evict untouched ccache contents
         ccache_end=$(date +%s)
         ccache_delta=$(( ccache_end - ccache_start ))
