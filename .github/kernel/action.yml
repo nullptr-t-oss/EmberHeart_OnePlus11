@@ -49,6 +49,8 @@ outputs:
     value: ${{ steps.get_kernel_version.outputs.kernel_version }}
   ksun_version:
     value: ${{ steps.add_ksun.outputs.ksun_version }}
+  ksun_tag:
+    value: ${{ steps.add_ksun.outputs.ksun_tag }}
   susfs_version:
     value: ${{ steps.add_susfs.outputs.susfs_version }}
   kernel_sha256:
@@ -418,6 +420,7 @@ runs:
         cd KernelSU-Next/kernel
 
         COMMITS_COUNT=$(/usr/bin/git rev-list --count HEAD)
+        KSUN_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
 
         if [ $COMMITS_COUNT -lt 2684 ]; then
           BASE_VERSION=10200
@@ -450,6 +453,7 @@ runs:
 
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
         echo "ksun_version=${KSU_VERSION}" >> "$GITHUB_OUTPUT"
+        echo "ksun_tag=${KSUN_TAG}" >> "$GITHUB_OUTPUT"
         echo "KernelSU Next Version: $KSU_VERSION"
         echo "KernelSU Next added (commit: ${KSUN_COMMIT_SHA}) ✅"
         echo "::endgroup::"

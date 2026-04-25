@@ -149,6 +149,7 @@ jobs:
     outputs:
       kernel_version: ${{ steps.build_kernel.outputs.kernel_version }}
       ksun_version: ${{ steps.build_kernel.outputs.ksun_version }}
+      ksun_tag: ${{ steps.build_kernel.outputs.ksun_tag }}
       susfs_version: ${{ steps.build_kernel.outputs.susfs_version }}
       kernel_sha256: ${{ steps.build_kernel.outputs.kernel_sha256 }}
       boot_sha256: ${{ steps.build_kernel.outputs.boot_sha256 }}
@@ -298,15 +299,15 @@ jobs:
              DEVICE="${{ inputs.model }}"
           fi
           if [[ -n "${{ needs.build-kernel.outputs.susfs_version }}" ]]; then
-            RELEASE_NAME="$DEVICE EmberHeart Kernel With KernelSU Next, Nethunter & SUSFS ${{ needs.build-kernel.outputs.susfs_version }}"
+            RELEASE_NAME="$DEVICE EmberHeart Kernel With KernelSU Next ${{ needs.build-kernel.outputs.ksun_tag }}, Nethunter & SUSFS ${{ needs.build-kernel.outputs.susfs_version }}"
           else
-            RELEASE_NAME="$DEVICE EmberHeart Kernel With KernelSU Next & Nethunter"
+            RELEASE_NAME="$DEVICE EmberHeart Kernel With KernelSU Next ${{ needs.build-kernel.outputs.ksun_tag }} & Nethunter"
           fi
           echo "RELEASE_NAME=$RELEASE_NAME" >> "$GITHUB_ENV"
 
       - name: Generate and Create New Tag
         run: |
-          BASE_TAG="${{ needs.build-kernel.outputs.susfs_version }}-r0"
+          BASE_TAG="${{ needs.build-kernel.outputs.ksun_tag }}-r0"
           LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name')
           if [ -z "$LATEST_TAG" ]; then
             LATEST_TAG="$BASE_TAG"
@@ -331,14 +332,14 @@ jobs:
           
           if [[ -n "${{ needs.build-kernel.outputs.susfs_version }}" ]]; then
             cat << EOF > release_notes.md
-          This release contains KernelSU Next, Nethunter and SUSFS ${{ needs.build-kernel.outputs.susfs_version }}
+          This release contains KernelSU Next ${{ needs.build-kernel.outputs.ksun_tag }}, Nethunter and SUSFS ${{ needs.build-kernel.outputs.susfs_version }}
 
           Module:
           -> https://github.com/sidex15/ksu_module_susfs
           EOF
           else
             cat << EOF > release_notes.md
-          This release contains KernelSU Next & Nethunter
+          This release contains KernelSU Next ${{ needs.build-kernel.outputs.ksun_tag }} & Nethunter
           EOF
           fi
 
@@ -369,7 +370,7 @@ jobs:
           cat << EOF >> release_notes.md
 
           ### Features
-          - [+] KernelSU-Next / WildKSU Manager Support
+          - [+] KernelSU-Next ${{ needs.build-kernel.outputs.ksun_tag }} ( ${{ needs.build-kernel.outputs.ksun_version }} )
           EOF
 
           if [[ -n "${{ needs.build-kernel.outputs.susfs_version }}" ]]; then
