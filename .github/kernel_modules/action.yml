@@ -301,7 +301,8 @@ runs:
 
         mkdir -p "$CCACHE_DIR"
 
-        ccache -o compression=true
+        ccache -o compression=false
+        ccache -M 5G
 
         # Use for ccache eviction
         echo "ccache_start=$(date +%s)" >> "$GITHUB_ENV"
