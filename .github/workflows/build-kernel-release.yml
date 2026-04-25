@@ -203,7 +203,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       vendor_boot_sha256:  ${{ steps.build_modules.outputs.vendor_boot_sha256 }}
-      vendor_dklm_sha256: ${{ steps.build_modules.outputs.vendor_dklm_sha256 }}
+      vendor_dlkm_sha256: ${{ steps.build_modules.outputs.vendor_dlkm_sha256 }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CCACHE_BASEDIR: ${{ github.workspace }}
@@ -396,7 +396,7 @@ jobs:
           > boot.img hash : ${{ needs.build-kernel.outputs.boot_sha256 }}
           > system_dlkm.img hash : ${{ needs.build-kernel.outputs.system_dlkm_sha256 }}
           > vendor_boot.img hash : ${{ needs.build-kernel-modules.outputs.vendor_boot_sha256 }}
-          > vendor_dlkm.img hash : ${{ needs.build-kernel-modules.outputs.vendor_dklm_sha256 }}
+          > vendor_dlkm.img hash : ${{ needs.build-kernel-modules.outputs.vendor_dlkm_sha256 }}
 
           EOF
 
