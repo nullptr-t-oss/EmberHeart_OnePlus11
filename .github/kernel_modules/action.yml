@@ -307,7 +307,7 @@ runs:
         echo "ccache_start=$(date +%s)" >> "$GITHUB_ENV"
 
     - name: Restore ccache
-      uses: actions/cache@v5
+      uses: actions/cache/restore@v5
       with:
         path: ${{ env.CCACHE_DIR }}
         key: ccache-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
@@ -316,7 +316,7 @@ runs:
           ccache-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-
 
     - name: Restore LTO cache
-      uses: actions/cache@v5
+      uses: actions/cache/restore@v5
       with:
         path: ${{ env.LDCACHE_DIR }}
         key: LTO-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
@@ -958,6 +958,18 @@ runs:
 
         echo "[WARNING] Deleting old ccache"
         gh cache delete ccache-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
+
+    - name: Save ccache
+      uses: actions/cache/save@v5
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ccache-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+
+    - name: Save LTO cache
+      uses: actions/cache/save@v5
+      with:
+        path: ${{ env.LDCACHE_DIR }}
+        key: LTO-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
 
     - name: Upload Kernel Modules zip
       if: success() && steps.create_zip.conclusion == 'success'
