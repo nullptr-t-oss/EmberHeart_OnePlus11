@@ -168,6 +168,7 @@ jobs:
       CCACHE_UMASK: "002"
       CCACHE_SLOPPINESS: "file_macro,time_macros,include_file_mtime,include_file_ctime,pch_defines,system_headers,locale,modules"
       CCACHE_IS_KERNEL_COMPILING: "true"
+      CCACHE_LOGFILE: "/tmp/kernel_ccache.log"
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.set-op-model.outputs.matrix) }}
@@ -214,6 +215,7 @@ jobs:
       CCACHE_UMASK: "002"
       CCACHE_SLOPPINESS: "file_macro,time_macros,include_file_mtime,include_file_ctime,pch_defines,system_headers,locale,modules"
       CCACHE_IS_KERNEL_COMPILING: "true"
+      CCACHE_LOGFILE: "/tmp/module_ccache.log"
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.set-op-model.outputs.matrix) }}
