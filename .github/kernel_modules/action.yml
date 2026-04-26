@@ -232,8 +232,8 @@ runs:
           OVERRIDES="$OVERRIDES,./=${{ inputs.vendor_branch_or_commit }}"
         fi
 
-        echo "Final override string: $OVERRIDES"
-        echo "PROJECT_OVERRIDE=$OVERRIDES" >> "$GITHUB_ENV"
+        echo "Final override string: ${OVERRIDES#,}"
+        echo "PROJECT_OVERRIDE=${OVERRIDES#,}" >> "$GITHUB_ENV"
 
     - name: Download source via custom manifest parser
       if: ${{ inputs.use_custom_repo_parser == 'true' }}
