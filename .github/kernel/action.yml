@@ -661,6 +661,14 @@ runs:
           fi
         fi
 
+        echo "SuSFS added ✅"
+        echo "::endgroup::"
+
+    - name: Patch Ptrace
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "::group::"
         KERNEL_VERSION="${{ env.KERNEL_VER }}"
         MIN_VERSION="5.16"
         if [ "$(printf '%s\n' "$KERNEL_VERSION" "$MIN_VERSION" | sort -V | head -n1)" = "$KERNEL_VERSION" ]; then
@@ -669,7 +677,6 @@ runs:
         else
           echo "Kernel >= $MIN_VERSION, skipping ptrace patch"
         fi
-        echo "SuSFS added ✅"
         echo "::endgroup::"
 
     - name: Add BBG
