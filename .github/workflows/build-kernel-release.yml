@@ -170,11 +170,7 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.kernel_ccache
       LDCACHE_DIR: ${{ github.workspace }}/.kernel_lto_cache
       CCACHE_COMPILERCHECK: "content"
-      CCACHE_NOCOMPRESS: "true"
       CCACHE_NOHASHDIR: "true"
-      CCACHE_HARDLINK: "true"
-      CCACHE_MAXSIZE: "0"
-      CCACHE_NODEPEND: "true"
       CCACHE_IGNOREOPTIONS: "--sysroot*"
       CCACHE_DIRECT: "true"
       CCACHE_FILECLONE: "true"
@@ -222,11 +218,7 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.modules_ccache
       LDCACHE_DIR: ${{ github.workspace }}/.modules_lto_cache
       CCACHE_COMPILERCHECK: "content"
-      CCACHE_NOCOMPRESS: "true"
       CCACHE_NOHASHDIR: "true"
-      CCACHE_HARDLINK: "true"
-      CCACHE_MAXSIZE: "0"
-      CCACHE_NODEPEND: "true"
       CCACHE_IGNOREOPTIONS: "--sysroot*"
       CCACHE_DIRECT: "true"
       CCACHE_FILECLONE: "true"
