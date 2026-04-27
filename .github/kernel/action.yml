@@ -915,11 +915,13 @@ runs:
         # Add for Droidspaces support
         # TODO: This patch is not universal add conditions for other kernel versions!
         #       for now Droidspaces support for kernels other than 5.15 is restricted
-        if patch -R -p1 -s -f --dry-run < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_6_7_8.patch"; then
+        if patch -R -p1 -s -f --dry-run < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_1_2_3.patch" >/dev/null 2>&1 || \
+           patch -R -p1 -s -f --dry-run < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_3_4_5.patch" >/dev/null 2>&1 || \
+           patch -R -p1 -s -f --dry-run < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_6_7_8.patch">/dev/null 2>&1; then
           echo "Patch already applied. Skipping."
         else
           echo "Applying patch..."
-          patch -p1 < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_6_7_8.patch"
+          patch -p1 < "$WILD_KERNEL_PATCHES/common/droidspaces/fix_sysvipc_kabi_1_2_3.patch"
         fi
 
         ./scripts/config --file arch/arm64/configs/gki_defconfig \
