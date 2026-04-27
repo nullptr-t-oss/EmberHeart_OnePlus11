@@ -788,7 +788,7 @@ runs:
 
         # Apply depmod and copy required artifacts
         cd "$DEPMOD_DIR"
-        depmod -F "$OUT/System.map" -b . "$UNAME"
+        depmod -F "$KBUILD_MIXED_TREE/System.map" -b . "$UNAME"
         cp -p "$DEPMOD_DIR_ROOT"/modules.{alias,dep,softdep} "$RAMDISK_STAGING_MODULES"
 
         # Copy modules from depmod dir and delete the dir since vendor dlkm is flattened
@@ -904,7 +904,7 @@ runs:
 
         # Apply depmod and copy required artifacts
         cd "$DEPMOD_DIR"
-        depmod -F "$OUT/System.map" -b . "$UNAME"
+        depmod -F "$KBUILD_MIXED_TREE/System.map" -b . "$UNAME"
         cp -p "$DEPMOD_DIR_ROOT"/modules.{alias,dep,softdep} "$DLKM_STAGING_ROOT"
 
         # Copy modules from depmod dir and delete the dir since vendor dlkm is flattened
