@@ -202,19 +202,23 @@ runs:
         ARTIFACTS_DIR_DEBUG="$CONFIG/debug/artifacts"
         KERNEL_PLATFORM="$CONFIG/kernel_platform"
         COMMON="$KERNEL_PLATFORM/common"
+        KBUILD_MIXED_TREE="$CONFIG/mixed_tree"
         WILD_KERNEL_PATCHES="$GITHUB_WORKSPACE/kernel_patches"
         KERNEL_PATCHES="$GITHUB_WORKSPACE/my_patches"
+
         echo "Creating folder for configuration: $CONFIG"
         mkdir -p "$CONFIG"
 
         mkdir -p "$ARTIFACTS_DIR"
         mkdir -p "$ARTIFACTS_DIR_DEBUG"
+        mkdir -p "$KBUILD_MIXED_TREE"
 
         echo "CONFIG=$CONFIG" >> "$GITHUB_ENV"
         echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> "$GITHUB_ENV"
         echo "ARTIFACTS_DIR_DEBUG=$ARTIFACTS_DIR_DEBUG" >> "$GITHUB_ENV"
         echo "KERNEL_PLATFORM=$KERNEL_PLATFORM" >> "$GITHUB_ENV"
         echo "COMMON=$COMMON" >> "$GITHUB_ENV"
+        echo "KBUILD_MIXED_TREE=$KBUILD_MIXED_TREE" >> "$GITHUB_ENV"
         echo "WILD_KERNEL_PATCHES=$WILD_KERNEL_PATCHES" >> "$GITHUB_ENV"
         echo "KERNEL_PATCHES=$KERNEL_PATCHES" >> "$GITHUB_ENV"
 
@@ -1121,12 +1125,28 @@ runs:
         fi
         sha256sum "$IMG" | tee "$OUT/Image.sha256"
         echo "Kernel built 😆"
-        echo "[DEBUG] Kernel build completed in ${duration}s"
 
         cp "$OUT/System.map" "$ARTIFACTS_DIR_DEBUG"
         cp "$OUT/Module.symvers" "$ARTIFACTS_DIR_DEBUG"
         cp "$OUT/vmlinux" "$ARTIFACTS_DIR_DEBUG"
 
+        echo "::endgroup::"
+
+    - name: Copy Files for Mixed builds
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "::group:: Copying files for mixed build"
+        OUT="$COMMON/out"
+
+        cp "$OUT/arch/arm64/boot/Image" "$KBUILD_MIXED_TREE"
+        cp "$OUT/vmlinux" "$KBUILD_MIXED_TREE"
+        cp "$OUT/System.map" "$KBUILD_MIXED_TREE"
+        cp "$OUT/vmlinux.symvers" "$KBUILD_MIXED_TREE"
+        cp "$OUT/modules.builtin" "$KBUILD_MIXED_TREE"
+        cp "$OUT/modules.builtin.modinfo" "$KBUILD_MIXED_TREE"
+
+        echo "[DEBUG] KBUILD_MIXED_TREE contents: $(ls ${KBUILD_MIXED_TREE})"
         echo "::endgroup::"
 
     - name: Collect Build Stats / Validate Image
@@ -1137,6 +1157,8 @@ runs:
         echo "::group::Collecting Build Stats..."
         OUT="$COMMON/out"
         IMG="$OUT/arch/arm64/boot/Image"
+
+        echo "[DEBUG] Kernel build completed in ${duration}s"
 
         WARNINGS=$(grep -i -E 'warning:' "$COMMON/build.log" | wc -l || true)
         echo "$WARNINGS" > "$OUT/warnings.txt"
@@ -1379,6 +1401,11 @@ runs:
         echo "[WARNING] Deleting old ccache..."
         gh cache delete ccache-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
 
+    - name: Purge old mixed artifacts
+      shell: bash
+      run: |
+        gh cache delete ${{ env.MODEL }}-MIXED-TREE-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }} || true
+
     - name: Save ccache
       uses: actions/cache/save@v5
       with:
@@ -1390,6 +1417,12 @@ runs:
       with:
         path: ${{ env.LDCACHE_DIR }}
         key: LTO-${{ env.MODEL }}-kernel-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
+
+    - name: Save files for Mixed builds
+      uses: actions/cache/save@v5
+      with:
+        path: ${{ env.KBUILD_MIXED_TREE }}
+        key: ${{ env.MODEL }}-MIXED-TREE-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
 
     - name: Upload Artifacts
       if: success() && steps.create_zip.conclusion == 'success'

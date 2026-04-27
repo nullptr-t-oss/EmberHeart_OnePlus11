@@ -178,7 +178,9 @@ runs:
         ARTIFACTS_DIR="$CONFIG/artifacts"
         ARTIFACTS_DIR_DEBUG="$CONFIG/debug/artifacts"
         KERNEL_PLATFORM="$CONFIG/kernel_platform"
+        COMMON="$KERNEL_PLATFORM/common"
         MSM="$KERNEL_PLATFORM/msm-kernel"
+        KBUILD_MIXED_TREE="$CONFIG/mixed_tree"
         KERNEL_PATCHES="$GITHUB_WORKSPACE/my_patches"
 
         echo "Creating folder for configuration: $CONFIG"
@@ -186,12 +188,15 @@ runs:
 
         mkdir -p "$ARTIFACTS_DIR"
         mkdir -p "$ARTIFACTS_DIR_DEBUG"
+        mkdir -p "$KBUILD_MIXED_TREE"
 
         echo "CONFIG=$CONFIG" >> "$GITHUB_ENV"
         echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> "$GITHUB_ENV"
         echo "ARTIFACTS_DIR_DEBUG=$ARTIFACTS_DIR_DEBUG" >> "$GITHUB_ENV"
         echo "KERNEL_PLATFORM=$KERNEL_PLATFORM" >> "$GITHUB_ENV"
+        echo "COMMON=$COMMON" >> "$GITHUB_ENV"
         echo "MSM=$MSM" >> "$GITHUB_ENV"
+        echo "KBUILD_MIXED_TREE=$KBUILD_MIXED_TREE" >> "$GITHUB_ENV"
         echo "KERNEL_PATCHES=$KERNEL_PATCHES" >> "$GITHUB_ENV"
 
         # Install repo tool if missing
@@ -317,7 +322,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        cd "$CONFIG/kernel_platform/msm-kernel"
+        cd "$MSM"
         CONFIG_FILES=("build.config.common" "build.config.constants")
         BRANCH_LINE=""
         for f in "${CONFIG_FILES[@]}"; do
@@ -344,6 +349,27 @@ runs:
         echo "KERNEL_VER=$VERSION.$PATCHLEVEL" >> "$GITHUB_ENV"
         echo "KERNEL_FULL_VER=$ANDROID_RELEASE-$KERNEL_VERSION" >> "$GITHUB_ENV"
         echo "SUSFS_KERNEL_BRANCH=gki-$ANDROID_RELEASE-$VERSION.$PATCHLEVEL" >> "$GITHUB_ENV"
+
+        cd "$COMMON"
+        CONFIG_FILES=("build.config.common" "build.config.constants")
+        BRANCH_LINE=""
+        for f in "${CONFIG_FILES[@]}"; do
+          if [ -f "$f" ]; then
+            l=$(grep '^[[:space:]]*BRANCH=' "$f" || true)
+            if [ -n "$l" ]; then BRANCH_LINE="$l"; break; fi
+          fi
+        done
+        if [ -z "$BRANCH_LINE" ]; then
+          echo "Error: No BRANCH= found"; exit 1
+        fi
+        BRANCH_VALUE="${BRANCH_LINE#*=}"
+        ANDROID_RELEASE_COMMON="${BRANCH_VALUE%-*}"
+        if [ -z "$ANDROID_RELEASE" ]; then
+          echo "Could not parse android version from BRANCH=$BRANCH_VALUE"
+          exit 1
+        fi
+        KERNEL_VERSION_COMMON=$(make kernelversion)
+        echo "MIXED_KERNEL_VERSION=$ANDROID_RELEASE_COMMON-$KERNEL_VERSION_COMMON" >> "$GITHUB_ENV"
 
     - name: Configure ccache
       shell: bash
@@ -375,6 +401,27 @@ runs:
         restore-keys: |
           LTO-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
           LTO-${{ env.MODEL }}-modules-${{ inputs.optimize_level }}-
+
+    - name: Restore files for Mixed builds
+      uses: actions/cache/restore@v5
+      with:
+        path: ${{ env.KBUILD_MIXED_TREE }}
+        key: ${{ env.MODEL }}-MIXED-TREE-${{ inputs.optimize_level }}-${{ env.MIXED_KERNEL_VERSION }}
+
+    - name: Check for Mixed Tree artifacts
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if [ -z "$(ls -A ${KBUILD_MIXED_TREE})" ]; then
+          echo "[ERROR] Mixed Tree artifacts not found!"
+          echo "[ERROR] Make sure mixed artifact for the latest kernel version of Common kernel is available in GitHub caches!"
+          echo "[ERROR] Stopping build"
+          exit 1
+        else
+          echo "[SUCCESS] MIXED TREE Artifacts found !"
+          echo "$(ls -A ${KBUILD_MIXED_TREE})"
+        fi
 
     - name: Clone kernel patches for msm kernel
       shell: bash
@@ -543,6 +590,7 @@ runs:
           OBJDUMP=llvm-objdump
           DEPMOD=depmod
           DTC="$KERNEL_PLATFORM/build/kernel/build-tools/path/linux-x86/dtc"
+          KBUILD_MIXED_TREE="$KBUILD_MIXED_TREE"
           DTC_FLAGS="-@"
           STRIP=llvm-strip
           HOSTCC="ccache clang"
