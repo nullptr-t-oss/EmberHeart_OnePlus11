@@ -171,6 +171,7 @@ jobs:
       LDCACHE_DIR: ${{ github.workspace }}/.kernel_lto_cache
       CCACHE_COMPILERCHECK: "content"
       CCACHE_NOHASHDIR: "true"
+      CCACHE_DEPEND: "true"
       CCACHE_IGNOREOPTIONS: "--sysroot*"
       CCACHE_DIRECT: "true"
       CCACHE_FILECLONE: "true"
@@ -219,6 +220,7 @@ jobs:
       LDCACHE_DIR: ${{ github.workspace }}/.modules_lto_cache
       CCACHE_COMPILERCHECK: "content"
       CCACHE_NOHASHDIR: "true"
+      CCACHE_DEPEND: "true"
       CCACHE_IGNOREOPTIONS: "--sysroot*"
       CCACHE_DIRECT: "true"
       CCACHE_FILECLONE: "true"
