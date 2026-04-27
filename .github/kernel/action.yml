@@ -197,11 +197,10 @@ runs:
       run: |
         set -euo pipefail
         # Derive a unique build directory name
-        CONFIG="$MODEL"
-        CONFIG_DIR="$GITHUB_WORKSPACE/$CONFIG"
-        ARTIFACTS_DIR="$CONFIG_DIR/artifacts"
-        ARTIFACTS_DIR_DEBUG="$CONFIG_DIR/debug/artifacts"
-        KERNEL_PLATFORM="$CONFIG_DIR/kernel_platform"
+        CONFIG="$GITHUB_WORKSPACE/$MODEL"
+        ARTIFACTS_DIR="$CONFIG/artifacts"
+        ARTIFACTS_DIR_DEBUG="$CONFIG/debug/artifacts"
+        KERNEL_PLATFORM="$CONFIG/kernel_platform"
         COMMON="$KERNEL_PLATFORM/common"
         WILD_KERNEL_PATCHES="$GITHUB_WORKSPACE/kernel_patches"
         KERNEL_PATCHES="$GITHUB_WORKSPACE/my_patches"
@@ -212,7 +211,6 @@ runs:
         mkdir -p "$ARTIFACTS_DIR_DEBUG"
 
         echo "CONFIG=$CONFIG" >> "$GITHUB_ENV"
-        echo "CONFIG_DIR=$CONFIG_DIR" >> "$GITHUB_ENV"
         echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> "$GITHUB_ENV"
         echo "ARTIFACTS_DIR_DEBUG=$ARTIFACTS_DIR_DEBUG" >> "$GITHUB_ENV"
         echo "KERNEL_PLATFORM=$KERNEL_PLATFORM" >> "$GITHUB_ENV"
@@ -263,7 +261,7 @@ runs:
       uses: nullptr-t-oss/turbo-repo-sync@main
       with:
         manifest_path: ${{ env.MANIFEST }}
-        workspace_dir: ${{ env.CONFIG_DIR }}
+        workspace_dir: ${{ env.CONFIG }}
         project_overrides: ${{ env.PROJECT_OVERRIDE }}
 
     - name: Optimize Global Git for Repo Tool
@@ -1123,6 +1121,7 @@ runs:
         fi
         sha256sum "$IMG" | tee "$OUT/Image.sha256"
         echo "Kernel built 😆"
+        echo "[DEBUG] Kernel build completed in ${duration}s"
 
         cp "$OUT/System.map" "$ARTIFACTS_DIR_DEBUG"
         cp "$OUT/Module.symvers" "$ARTIFACTS_DIR_DEBUG"
@@ -1396,11 +1395,11 @@ runs:
       if: success() && steps.create_zip.conclusion == 'success'
       uses: actions/upload-artifact@v4
       with:
-        name: kernel-${{ env.CONFIG }}
+        name: kernel-${{ env.MODEL }}
         path: ${{ env.CONFIG }}/artifacts/
 
     - name: Upload Debug zip
       uses: actions/upload-artifact@v4
       with:
-        name: debug-common-${{ env.CONFIG }}
+        name: debug-common-${{ env.MODEL }}
         path: ${{ env.CONFIG }}/debug/artifacts/

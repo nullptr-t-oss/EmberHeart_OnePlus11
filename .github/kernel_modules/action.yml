@@ -174,11 +174,10 @@ runs:
       run: |
         set -euo pipefail
         # Derive a unique build directory name
-        CONFIG="$MODEL"
-        CONFIG_DIR="$GITHUB_WORKSPACE/$CONFIG"
-        ARTIFACTS_DIR="$CONFIG_DIR/artifacts"
-        ARTIFACTS_DIR_DEBUG="$CONFIG_DIR/debug/artifacts"
-        KERNEL_PLATFORM="$CONFIG_DIR/kernel_platform"
+        CONFIG="$GITHUB_WORKSPACE/$MODEL"
+        ARTIFACTS_DIR="$CONFIG/artifacts"
+        ARTIFACTS_DIR_DEBUG="$CONFIG/debug/artifacts"
+        KERNEL_PLATFORM="$CONFIG/kernel_platform"
         MSM="$KERNEL_PLATFORM/msm-kernel"
         KERNEL_PATCHES="$GITHUB_WORKSPACE/my_patches"
 
@@ -189,7 +188,6 @@ runs:
         mkdir -p "$ARTIFACTS_DIR_DEBUG"
 
         echo "CONFIG=$CONFIG" >> "$GITHUB_ENV"
-        echo "CONFIG_DIR=$CONFIG_DIR" >> "$GITHUB_ENV"
         echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> "$GITHUB_ENV"
         echo "ARTIFACTS_DIR_DEBUG=$ARTIFACTS_DIR_DEBUG" >> "$GITHUB_ENV"
         echo "KERNEL_PLATFORM=$KERNEL_PLATFORM" >> "$GITHUB_ENV"
@@ -243,7 +241,7 @@ runs:
       uses: nullptr-t-oss/turbo-repo-sync@main
       with:
         manifest_path: ${{ env.MANIFEST }}
-        workspace_dir: ${{ env.CONFIG_DIR }}
+        workspace_dir: ${{ env.CONFIG }}
         project_overrides: ${{ env.PROJECT_OVERRIDE }}
 
     - name: Optimize Global Git for Repo Tool
@@ -319,7 +317,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        cd "$CONFIG_DIR/kernel_platform/msm-kernel"
+        cd "$CONFIG/kernel_platform/msm-kernel"
         CONFIG_FILES=("build.config.common" "build.config.constants")
         BRANCH_LINE=""
         for f in "${CONFIG_FILES[@]}"; do
@@ -659,7 +657,7 @@ runs:
         echo "Compiling vendor devicetree overlays"
         SECONDS=0
 
-        for PROJECT in $(cd "$CONFIG_DIR" && find -L vendor/ -maxdepth 4 -type d -name "*-devicetree"); do
+        for PROJECT in $(cd "$CONFIG" && find -L vendor/ -maxdepth 4 -type d -name "*-devicetree"); do
           if [ ! -e "../$PROJECT/Makefile" ]; then
             echo "$PROJECT does not have expected build configuration files, skipping..."
             continue
@@ -927,8 +925,8 @@ runs:
         set -euo pipefail
         OUT="$MSM/out"
         MODULES_SRC="$OUT/modules"
-        MODULES_ZIP="$CONFIG_DIR/artifacts/kernel_modules_${{ env.MODEL }}.zip"
-        mkdir -p "$CONFIG_DIR/artifacts"
+        MODULES_ZIP="$CONFIG/artifacts/kernel_modules_${{ env.MODEL }}.zip"
+        mkdir -p "$CONFIG/artifacts"
         find "$MODULES_SRC" -type f -name '*.ko' -print0 | xargs -0 zip -j "$MODULES_ZIP"
         echo "Packaged kernel modules to $MODULES_ZIP"
 
@@ -1031,11 +1029,11 @@ runs:
       if: success() && steps.create_zip.conclusion == 'success'
       uses: actions/upload-artifact@v4
       with:
-        name: kernel-modules-${{ env.CONFIG }}
+        name: kernel-modules-${{ env.MODEL }}
         path: ${{ env.CONFIG }}/artifacts/
 
     - name: Upload Debug zip
       uses: actions/upload-artifact@v4
       with:
-        name: debug-msm-${{ env.CONFIG }}
+        name: debug-msm-${{ env.MODEL }}
         path: ${{ env.CONFIG }}/debug/artifacts/
