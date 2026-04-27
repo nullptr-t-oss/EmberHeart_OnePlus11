@@ -202,7 +202,7 @@ runs:
         ARTIFACTS_DIR_DEBUG="$CONFIG/debug/artifacts"
         KERNEL_PLATFORM="$CONFIG/kernel_platform"
         COMMON="$KERNEL_PLATFORM/common"
-        KBUILD_MIXED_TREE="$CONFIG/mixed_tree"
+        KBUILD_MIXED_DIR="$CONFIG/mixed_tree"
         WILD_KERNEL_PATCHES="$GITHUB_WORKSPACE/kernel_patches"
         KERNEL_PATCHES="$GITHUB_WORKSPACE/my_patches"
 
@@ -211,14 +211,14 @@ runs:
 
         mkdir -p "$ARTIFACTS_DIR"
         mkdir -p "$ARTIFACTS_DIR_DEBUG"
-        mkdir -p "$KBUILD_MIXED_TREE"
+        mkdir -p "$KBUILD_MIXED_DIR"
 
         echo "CONFIG=$CONFIG" >> "$GITHUB_ENV"
         echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> "$GITHUB_ENV"
         echo "ARTIFACTS_DIR_DEBUG=$ARTIFACTS_DIR_DEBUG" >> "$GITHUB_ENV"
         echo "KERNEL_PLATFORM=$KERNEL_PLATFORM" >> "$GITHUB_ENV"
         echo "COMMON=$COMMON" >> "$GITHUB_ENV"
-        echo "KBUILD_MIXED_TREE=$KBUILD_MIXED_TREE" >> "$GITHUB_ENV"
+        echo "KBUILD_MIXED_DIR=$KBUILD_MIXED_DIR" >> "$GITHUB_ENV"
         echo "WILD_KERNEL_PATCHES=$WILD_KERNEL_PATCHES" >> "$GITHUB_ENV"
         echo "KERNEL_PATCHES=$KERNEL_PATCHES" >> "$GITHUB_ENV"
 
@@ -1139,14 +1139,14 @@ runs:
         echo "::group:: Copying files for mixed build"
         OUT="$COMMON/out"
 
-        cp "$OUT/arch/arm64/boot/Image" "$KBUILD_MIXED_TREE"
-        cp "$OUT/vmlinux" "$KBUILD_MIXED_TREE"
-        cp "$OUT/System.map" "$KBUILD_MIXED_TREE"
-        cp "$OUT/vmlinux.symvers" "$KBUILD_MIXED_TREE"
-        cp "$OUT/modules.builtin" "$KBUILD_MIXED_TREE"
-        cp "$OUT/modules.builtin.modinfo" "$KBUILD_MIXED_TREE"
+        cp "$OUT/arch/arm64/boot/Image" "$KBUILD_MIXED_DIR"
+        cp "$OUT/vmlinux" "$KBUILD_MIXED_DIR"
+        cp "$OUT/System.map" "$KBUILD_MIXED_DIR"
+        cp "$OUT/vmlinux.symvers" "$KBUILD_MIXED_DIR"
+        cp "$OUT/modules.builtin" "$KBUILD_MIXED_DIR"
+        cp "$OUT/modules.builtin.modinfo" "$KBUILD_MIXED_DIR"
 
-        echo "[DEBUG] KBUILD_MIXED_TREE contents: $(ls ${KBUILD_MIXED_TREE})"
+        echo "[DEBUG] KBUILD_MIXED_DIR contents: $(ls ${KBUILD_MIXED_DIR})"
         echo "::endgroup::"
 
     - name: Collect Build Stats / Validate Image
@@ -1421,7 +1421,7 @@ runs:
     - name: Save files for Mixed builds
       uses: actions/cache/save@v5
       with:
-        path: ${{ env.KBUILD_MIXED_TREE }}
+        path: ${{ env.KBUILD_MIXED_DIR }}
         key: ${{ env.MODEL }}-MIXED-TREE-${{ inputs.optimize_level }}-${{ env.KERNEL_FULL_VER }}
 
     - name: Upload Artifacts
