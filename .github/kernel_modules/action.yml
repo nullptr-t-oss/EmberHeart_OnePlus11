@@ -382,7 +382,7 @@ runs:
         ccache -M 5G
 
         # Use for ccache eviction
-        echo "ccache_start=$(date +%s)" >> "$GITHUB_ENV"
+        find ${{ env.CCACHE_DIR }} -type f -exec touch -t $(date -d "1 day ago" +%Y%m%d%H%M) {} +
 
     - name: Restore ccache
       uses: actions/cache/restore@v5
@@ -1048,11 +1048,9 @@ runs:
         cp "$CCACHE_LOGFILE" "$ARTIFACTS_DIR_DEBUG"
 
         # Evict untouched ccache contents
-        ccache_end=$(date +%s)
-        ccache_delta=$(( ccache_end - ccache_start ))
         if [[ "${{ inputs.evict_unused_ccache }}" == "true" ]]; then
-          echo "[DEBUG] Deleting ccache contents older than $ccache_delta seconds"
-          ccache --evict-older-than "${ccache_delta}s"
+          echo "[DEBUG] Deleting old ccache contents"
+          ccache --evict-older-than 3h
         fi
 
         echo "[WARNING] Deleting old LTO cache"
