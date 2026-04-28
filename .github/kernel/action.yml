@@ -1395,6 +1395,7 @@ runs:
         cp "$CCACHE_LOGFILE" "$ARTIFACTS_DIR_DEBUG"
 
         # Evict untouched ccache contents
+        if [[ "${{ inputs.evict_unused_ccache }}" == "true" ]]; then
           echo "[DEBUG] Deleting old ccache contents"
           ccache --evict-older-than 3h
         fi
