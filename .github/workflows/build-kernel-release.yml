@@ -246,6 +246,7 @@ jobs:
           manifest: ${{ inputs.manifest }}
           evict_unused_ccache: ${{ inputs.evict_unused_ccache }}
           use_custom_repo_parser: ${{ inputs.use_custom_repo_parser }}
+          optimize_level: ${{ inputs.optimize_level }}
           vendor_branch_or_commit: ${{ inputs.vendor_branch_or_commit }}
           msm_branch_or_commit: ${{ inputs.msm_branch_or_commit }}
           prebuilt_dtb: ${{ inputs.prebuilt_dtb }}
