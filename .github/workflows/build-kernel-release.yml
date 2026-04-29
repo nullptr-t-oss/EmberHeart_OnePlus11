@@ -243,6 +243,7 @@ jobs:
         uses: ./.github/kernel_modules
         with:
           op_config_json: ${{ toJSON(matrix) }}
+          optimize_level: ${{ inputs.optimize_level }}
           manifest: ${{ inputs.manifest }}
           evict_unused_ccache: ${{ inputs.evict_unused_ccache }}
           use_custom_repo_parser: ${{ inputs.use_custom_repo_parser }}
