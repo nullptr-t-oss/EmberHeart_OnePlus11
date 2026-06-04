@@ -608,7 +608,7 @@ runs:
           KCPPFLAGS="$KCPPFLAGS"
         )
 
-        if [[ "$BUILD_TARGET_TYPE" == "Mixed Build" || "$BUILD_TARGET_TYPE" == "Modules Only" ]]; then
+        if [[ "$BUILD_TYPE" == "Mixed Build" || "$BUILD_TYPE" == "Modules Only" ]]; then
           MAKE_FLAGS+=(
             KBUILD_MIXED_TREE="$KBUILD_MIXED_TREE"
           )
