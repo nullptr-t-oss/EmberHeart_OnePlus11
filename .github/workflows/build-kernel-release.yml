@@ -99,6 +99,7 @@ on:
         type: choice
         options:
           - OP11
+          - OP11_LOS
         default: OP11
 
 jobs:
