@@ -52,6 +52,7 @@ runs:
       run: |
         set -euo pipefail
         echo "MANIFEST=$MANIFEST_${{ inputs.manifest }}" >> "$GITHUB_ENV"
+        echo "MANIFEST_NAME=${{ inputs.manifest }}" >> "$GITHUB_ENV"
 
     - name: Validate Inputs
       shell: bash

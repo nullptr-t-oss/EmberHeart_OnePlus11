@@ -226,7 +226,7 @@ runs:
           --module CONFIG_CAN_SLCAN
 
     - name: Add my kernel patches to msm kernel
-      if: env.SOC == 'kalama' && !contains(env.MANIFEST, 'CUSTOM')
+      if: env.SOC == 'kalama' && !contains(env.MANIFEST_NAME, 'CUSTOM')
       shell: bash
       run: |
         set -euo pipefail
