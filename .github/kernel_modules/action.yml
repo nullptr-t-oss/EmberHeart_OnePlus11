@@ -482,7 +482,9 @@ runs:
             ../vendor/qcom/opensource/wlan/qcacld-3.0
         )
 
-        export KBUILD_EXTRA_SYMBOLS=""
+        if [[ "$BUILD_TYPE" == "Mixed Build" || "$BUILD_TYPE" == "Modules Only" ]]; then
+          export KBUILD_EXTRA_SYMBOLS=""
+        fi
 
         echo "Compiling vendor modules (qcom)"
         SECONDS=0
