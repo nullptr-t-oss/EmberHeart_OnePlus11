@@ -165,8 +165,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        cd "$CONFIG/kernel_platform"
-        rm -f msm-kernel/android/abi_gki_protected_exports_* || true
+        rm -f $MSM/android/abi_gki_protected_exports_* || true
         df -h
 
     - name: Merge vendor fragments
@@ -249,7 +248,7 @@ runs:
       run: |
         set -euo pipefail
         echo "Applying kernel patches to msm kernel from my repo..."
-        cd "$CONFIG/kernel_platform/msm-kernel"
+        cd "$MSM"
 
         for patch_file in $KERNEL_PATCHES/kernel_patches/op11/msm/*.patch; do
             echo "Applying patch: $patch_file"
@@ -403,7 +402,12 @@ runs:
         # Exports for external kernel modules
         export BOARD_PLATFORM=kalama
         export ROOT_DIR=$KERNEL_PLATFORM
-        export KERNEL_DIR=msm-kernel
+
+        if [[ "$BUILD_TYPE" == "Mixed Build" || "$BUILD_TYPE" == "Modules Only" ]]; then
+          export KERNEL_DIR=msm-kernel
+        else
+          export KERNEL_DIR=common
+        fi
         export MODNAME=audio_dlkm
         export OPLUS_ARCH_EXTENDS=y
         export KERNEL_BUILD=0
