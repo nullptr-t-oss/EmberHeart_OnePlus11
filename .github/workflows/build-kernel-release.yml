@@ -76,7 +76,7 @@ on:
       kernel_uname:
         description: 'Kernel uname'
         type: string
-        default: 'EmberHeart'
+        default: ''
       susfs_branch_or_commit:
         description: 'Enter SusFS Branch or commit hash'
         type: string
