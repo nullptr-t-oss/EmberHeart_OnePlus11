@@ -71,7 +71,6 @@ on:
         default: O2
       clang_version:
         description: "Compiler version (Example : clang-r547379)"
-        required: true
         type: string
         default: ''
       kernel_uname:
