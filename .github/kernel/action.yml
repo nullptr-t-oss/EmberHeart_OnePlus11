@@ -786,6 +786,7 @@ runs:
         echo "::endgroup::"
 
     - name: Customize Kernel Branding
+      if: inputs.kernel_uname != ''
       shell: bash
       run: |
         set -euo pipefail
