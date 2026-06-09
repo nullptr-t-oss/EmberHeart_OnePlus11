@@ -27,7 +27,7 @@ inputs:
   susfs_commit_hash_or_branch:
     required: false
     type: string
-    default: "dev"
+    default: ""
   optimize_level:
     required: false
     type: string
@@ -39,7 +39,7 @@ inputs:
   kernel_uname:
     required: false
     type: string
-    default: "EmberHeart"
+    default: ""
   compile_dlkm:
     description: 'Do you want to compile dlkm and vendor boot?'
     required: false
