@@ -84,7 +84,7 @@ on:
       vendor_branch_or_commit:
         description: 'Enter vendor modules and device tree branch or commit hash'
         type: string
-        default: 'oneplus/sm8550_b_16.0.0_oneplus_11'
+        default: ''
       common_branch_or_commit:
         description: 'Enter COMMON kernel branch or commit hash'
         type: string
