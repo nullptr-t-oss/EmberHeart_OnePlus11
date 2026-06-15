@@ -774,7 +774,6 @@ runs:
           --enable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE \
           --disable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3 \
           --enable CONFIG_OPTIMIZE_INLINING \
-          --set-val CONFIG_FRAME_WARN 0 \
           --enable CONFIG_TRACEPOINTS
 
         # Optimize level config and flags
@@ -833,8 +832,7 @@ runs:
         fi
 
         # Consistent flags; include -pipe and disable stack protector
-        KCFLAGS="-Wno-error -pipe -fno-stack-protector ${KCFLAGS_EXTRA}"
-        KCPPFLAGS="-DCONFIG_OPTIMIZE_INLINING"
+        KCFLAGS="-pipe ${KCFLAGS_EXTRA}"
 
         echo '#!/bin/bash' > ld-wrapper
         echo 'ld.lld "$@" --thinlto-cache-dir=$LDCACHE_DIR --thinlto-jobs=$(nproc --all)' >> ld-wrapper
@@ -872,7 +870,6 @@ runs:
           HOSTCXX="ccache clang++"
           CC="ccache clang"
           KCFLAGS="$KCFLAGS"
-          KCPPFLAGS="$KCPPFLAGS"
         )
 
         OUT=out

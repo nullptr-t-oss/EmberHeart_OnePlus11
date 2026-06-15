@@ -297,9 +297,8 @@ runs:
           KCFLAGS_EXTRA="-O2"
         fi
 
-        # Consistent flags; include -pipe and disable stack protector
-        KCFLAGS="-Wno-error -pipe -fno-stack-protector ${KCFLAGS_EXTRA}"
-        KCPPFLAGS="-DCONFIG_OPTIMIZE_INLINING"
+        # Consistent flags; include -pipe
+        KCFLAGS="-pipe ${KCFLAGS_EXTRA}"
 
         echo '#!/bin/bash' > ld-wrapper
         echo 'ld.lld "$@" --thinlto-cache-dir=$LDCACHE_DIR --thinlto-jobs=$(nproc --all)' >> ld-wrapper
@@ -337,7 +336,6 @@ runs:
           HOSTCXX="ccache clang++"
           CC="ccache clang"
           KCFLAGS="$KCFLAGS"
-          KCPPFLAGS="$KCPPFLAGS"
         )
 
         if [[ "$BUILD_TYPE" == "Mixed Build" || "$BUILD_TYPE" == "Modules Only" ]]; then
