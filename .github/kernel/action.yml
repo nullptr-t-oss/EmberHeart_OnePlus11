@@ -534,6 +534,7 @@ runs:
         ./scripts/config --file arch/arm64/configs/gki_defconfig \
           --enable CONFIG_TCP_CONG_ADVANCED \
           --enable CONFIG_TCP_CONG_BBR \
+          --enable CONFIG_TCP_CONG_BBR3 \
           --enable CONFIG_NET_SCH_FQ \
           --enable CONFIG_NET_SCH_FQ_CODEL
 
