@@ -76,9 +76,17 @@ on:
         options: [Thin, Full]
         default: Full
       clang_version:
-        description: "Compiler version (Example : clang-r547379)"
-        type: string
-        default: ''
+        description: "Select Compiler version"
+        required: true
+        type: choice
+        options:
+          - default
+          - aosp-clang-3289846
+          - aosp-clang-r547379
+          - aosp-clang-r563880
+          - aosp-clang-r563880c
+          - aosp-clang-r574158
+        default: 'default'
       kernel_uname:
         description: 'Kernel uname'
         type: string
@@ -210,6 +218,7 @@ jobs:
           op_config_json: ${{ toJSON(matrix) }}
           manifest: ${{ inputs.manifest }}
           use_custom_repo_parser: ${{ inputs.use_custom_repo_parser }}
+          clang_version: ${{ inputs.clang_version }}
           common_branch_or_commit: ${{ inputs.common_branch_or_commit }}
           msm_branch_or_commit: ${{ inputs.msm_branch_or_commit }}
           vendor_branch_or_commit: ${{ inputs.vendor_branch_or_commit }}
@@ -230,7 +239,6 @@ jobs:
           susfs_commit_hash_or_branch: ${{ inputs.susfs_branch_or_commit }}
           optimize_level: ${{ inputs.optimize_level }}
           lto: ${{ inputs.lto }}
-          clang_version: ${{ inputs.clang_version }}
           kernel_uname: ${{ inputs.kernel_uname }}
           compile_dlkm: ${{ inputs.compile_dlkm }}
 
@@ -244,7 +252,6 @@ jobs:
         with:
           optimize_level: ${{ inputs.optimize_level }}
           lto: ${{ inputs.lto }}
-          clang_version: ${{ inputs.clang_version }}
           evict_unused_ccache: ${{ inputs.evict_unused_ccache }}
           compile_dlkm: ${{ inputs.compile_dlkm }}
 

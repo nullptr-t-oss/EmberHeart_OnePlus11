@@ -36,10 +36,6 @@ inputs:
     required: false
     type: string
     default: Thin  # Choices: Thin or Full
-  clang_version:
-    required: false
-    type: string
-    default: ''
   kernel_uname:
     required: false
     type: string
@@ -103,41 +99,6 @@ runs:
         echo "KERNEL_FULL_VER=$ANDROID_RELEASE-$KERNEL_VERSION" >> "$GITHUB_ENV"
         echo "SUSFS_KERNEL_BRANCH=gki-$ANDROID_RELEASE-$VERSION.$PATCHLEVEL" >> "$GITHUB_ENV"
         echo "kernel_version=$ANDROID_RELEASE-$KERNEL_VERSION" >> "$GITHUB_OUTPUT"
-
-    - name: Detect Clang (toolchain for build)
-      shell: bash
-      run: |
-        set -euo pipefail
-        echo "::group::Detecting Clang..."
-        CLANG_FOUND=false
-        for base in "$KERNEL_PLATFORM/prebuilts" "$KERNEL_PLATFORM/prebuilts-master"; do
-          [ -d "$base/clang/host/linux-x86" ] || continue
-
-          if [ -n "${{ inputs.clang_version }}" ] && [ -x "$base"/clang/host/linux-x86/${{ inputs.clang_version }}/bin/clang ]; then
-            CLANG_BIN="${base}"/clang/host/linux-x86/${{ inputs.clang_version }}/bin
-            CLANG_FOUND=true
-            continue
-          fi
-
-          latest=$(ls -d "$base"/clang/host/linux-x86/clang-r*/ 2>/dev/null | sort -V | tail -n1 || true)
-          if [ -n "$latest" ] && [ -x "$latest/bin/clang" ]; then
-            CLANG_BIN="$latest/bin"
-            CLANG_FOUND=true
-          fi
-        done
-        if ! $CLANG_FOUND && command -v clang >/dev/null 2>&1; then
-          CLANG_BIN="$(dirname "$(command -v clang)")"
-          CLANG_FOUND=true
-          echo "Using system clang."
-        fi
-        $CLANG_FOUND || { echo "No clang toolchain found"; exit 1; }
-        echo "CLANG_BIN_PATH=$CLANG_BIN" >> "$GITHUB_ENV"
-        CLANG_VERSION="$("$CLANG_BIN/clang" --version | head -n1)"
-        echo "CLANG_VERSION=$CLANG_VERSION" >> "$GITHUB_ENV"
-        echo "Detected Clang: $CLANG_VERSION"
-
-        echo "Clang detected ✅"
-        echo "::endgroup::"
 
     - name: Set Build Identity
       shell: bash
@@ -933,10 +894,6 @@ runs:
 
         # Ensure Python warnings are suppressed for scripts invoked by make
         export PYTHONWARNINGS="${PYTHONWARNINGS}"
-
-        if [ -n "${CLANG_BIN_PATH:-}" ] && [ -x "${CLANG_BIN_PATH}/clang" ]; then
-          export PATH="${CLANG_BIN_PATH}:$PATH"
-        fi
 
         if [ "${{ inputs.optimize_level }}" = "O3" ]; then
           KCFLAGS_EXTRA="-O3"

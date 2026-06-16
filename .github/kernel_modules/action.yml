@@ -13,10 +13,6 @@ inputs:
     required: false
     type: string
     default: Thin  # Choices: Thin or Full
-  clang_version:
-    required: false
-    type: string
-    default: '' 
   evict_unused_ccache:
     description: 'Do you want to evict unused ccache?'
     required: true
@@ -103,37 +99,6 @@ runs:
         fi
         KERNEL_VERSION_COMMON=$(make kernelversion)
         echo "MIXED_KERNEL_VERSION=$ANDROID_RELEASE_COMMON-$KERNEL_VERSION_COMMON" >> "$GITHUB_ENV"
-
-    - name: Detect Clang (toolchain for build)
-      shell: bash
-      run: |
-        set -euo pipefail
-        CLANG_FOUND=false
-        for base in "$KERNEL_PLATFORM/prebuilts" "$KERNEL_PLATFORM/prebuilts-master"; do
-          [ -d "$base/clang/host/linux-x86" ] || continue
-          
-          if [ -n "${{ inputs.clang_version }}" ] && [ -x "$base"/clang/host/linux-x86/${{ inputs.clang_version }}/bin/clang ]; then
-            CLANG_BIN="${base}"/clang/host/linux-x86/${{ inputs.clang_version }}/bin
-            CLANG_FOUND=true
-            continue
-          fi
-
-          latest=$(ls -d "$base"/clang/host/linux-x86/clang-r*/ 2>/dev/null | sort -V | tail -n1 || true)
-          if [ -n "$latest" ] && [ -x "$latest/bin/clang" ]; then
-            CLANG_BIN="$latest/bin"
-            CLANG_FOUND=true
-          fi
-        done
-        if ! $CLANG_FOUND && command -v clang >/dev/null 2>&1; then
-          CLANG_BIN="$(dirname "$(command -v clang)")"
-          CLANG_FOUND=true
-          echo "Using system clang."
-        fi
-        $CLANG_FOUND || { echo "No clang toolchain found"; exit 1; }
-        echo "CLANG_BIN_PATH=$CLANG_BIN" >> "$GITHUB_ENV"
-        CLANG_VERSION="$("$CLANG_BIN/clang" --version | head -n1)"
-        echo "CLANG_VERSION=$CLANG_VERSION" >> "$GITHUB_ENV"
-        echo "Detected Clang: $CLANG_VERSION"
 
     - name: Configure ccache
       shell: bash
@@ -317,8 +282,6 @@ runs:
       run: |
         set -euo pipefail
         cd "$MSM"
-
-        export PATH="${CLANG_BIN_PATH}:$PATH"
 
         if [ -d "$KERNEL_PLATFORM/build/build-tools/path" ]; then
           export PATH="$KERNEL_PLATFORM/build/build-tools/path/linux-x86:$PATH"

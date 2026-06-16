@@ -18,6 +18,10 @@ inputs:
     required: true
     type: string
     default: 'false'
+  clang_version:
+    required: false
+    type: string
+    default: ""
   common_branch_or_commit:
     required: false
     type: string
@@ -38,6 +42,65 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Aggressive cleanup
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "::group::Cleanup space"
+
+        (docker system prune -af && docker builder prune -af || true) &
+
+        DIRS=(
+          /usr/share/dotnet
+          /usr/share/swift
+          /usr/local/.ghcup
+          /usr/local/julia*
+          /usr/local/lib/android
+          /usr/local/share/chromium
+          /opt/microsoft
+          /opt/google
+          /opt/az
+          /usr/local/share/powershell
+          /opt/hostedtoolcache
+        )
+
+        printf "%s\0" "${DIRS[@]}" | xargs -0 -P 4 -n 1 sudo rm -rf
+
+        wait
+        df -h
+        echo "::endgroup::"
+
+    - name: Install Minimal Dependencies
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "::group::Install deps"
+        sudo apt-get -o Acquire::Retries=3 update -qq
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+          git curl ca-certificates build-essential clang lld flex bison \
+          libelf-dev libssl-dev libncurses-dev zlib1g-dev liblz4-tool \
+          libxml2-utils rsync unzip dwarves file python3
+        sudo apt-get clean
+        echo "::endgroup::"
+
+    - name: Install ccache with ECS by cctv18
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "::group::Install ccache with ECS"
+        wget -q https://github.com/nullptr-t-oss/kernel_patches/raw/refs/heads/main/bin/ccache-x86-64 -O ccache
+        sudo cp -f ./ccache /usr/bin/ccache
+        sudo chmod +x /usr/bin/ccache
+        rm -f ./ccache
+
+        echo "[DEBUG] Ccache version : $(ccache --version)"
+        echo "::endgroup::"
+
+    - name: Setup SWAP
+      uses: pierotofy/set-swap-space@master
+      with:
+        swap-size-gb: 16
+
     - name: Parse op_config_json
       shell: bash
       run: |
@@ -102,60 +165,6 @@ runs:
           *) echo "optimize_level must be O2 or O3; got '$optimize'"; exit 1 ;;
         esac
         echo "Input validation OK."
-        echo "::endgroup::"
-
-    - name: Aggressive cleanup
-      shell: bash
-      run: |
-        set -euo pipefail
-        echo "::group::Cleanup space"
-
-        (docker system prune -af && docker builder prune -af || true) &
-
-        DIRS=(
-          /usr/share/dotnet
-          /usr/share/swift
-          /usr/local/.ghcup
-          /usr/local/julia*
-          /usr/local/lib/android
-          /usr/local/share/chromium
-          /opt/microsoft
-          /opt/google
-          /opt/az
-          /usr/local/share/powershell
-          /opt/hostedtoolcache
-        )
-
-        printf "%s\0" "${DIRS[@]}" | xargs -0 -P 4 -n 1 sudo rm -rf
-
-        wait
-        df -h
-        echo "::endgroup::"
-
-    - name: Install Minimal Dependencies
-      shell: bash
-      run: |
-        set -euo pipefail
-        echo "::group::Install deps"
-        sudo apt-get -o Acquire::Retries=3 update -qq
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-          git curl ca-certificates build-essential clang lld flex bison \
-          libelf-dev libssl-dev libncurses-dev zlib1g-dev liblz4-tool \
-          libxml2-utils rsync unzip dwarves file python3
-        sudo apt-get clean
-        echo "::endgroup::"
-
-    - name: Install ccache with ECS by cctv18
-      shell: bash
-      run: |
-        set -euo pipefail
-        echo "::group::Install ccache with ECS"
-        wget -q https://github.com/nullptr-t-oss/kernel_patches/raw/refs/heads/main/bin/ccache-x86-64 -O ccache
-        sudo cp -f ./ccache /usr/bin/ccache
-        sudo chmod +x /usr/bin/ccache
-        rm -f ./ccache
-
-        echo "[DEBUG] Ccache version : $(ccache --version)"
         echo "::endgroup::"
 
     - name: Setup Base Environment
@@ -339,3 +348,48 @@ runs:
           echo "Current HEAD for MSM kernel repo is at:"
           git show HEAD --no-patch
         fi
+
+    - name: Setup clang type
+      if: ${{ inputs.clang_version != 'default' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "CLANG=${{ inputs.clang_version }}" >> "$GITHUB_ENV""
+
+
+    - name: Download Clang (toolchain for build)
+      uses: nullptr-t-oss/kernel_toolchains/clang_setup@main
+      if: env.CLANG != 'manifest'
+      with:
+        clang-version: '${{ env.CLANG }}'
+        install-dir: '${{ env.KERNEL_PLATFORM }}/prebuilts/clang/host/linux-x86'
+
+    - name: Detect Clang (toolchain for build)
+      if:  env.CLANG == 'manifest'
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "::group::Detecting Clang..."
+        CLANG_FOUND=false
+        for base in "$KERNEL_PLATFORM/prebuilts" "$KERNEL_PLATFORM/prebuilts-master"; do
+          [ -d "$base/clang/host/linux-x86" ] || continue
+
+          latest=$(ls -d "$base"/clang/host/linux-x86/clang-r*/ 2>/dev/null | sort -V | tail -n1 || true)
+          if [ -n "$latest" ] && [ -x "$latest/bin/clang" ]; then
+            CLANG_BIN="$latest/bin"
+            CLANG_FOUND=true
+          fi
+        done
+        if ! $CLANG_FOUND && command -v clang >/dev/null 2>&1; then
+          CLANG_BIN="$(dirname "$(command -v clang)")"
+          CLANG_FOUND=true
+          echo "Using system clang."
+        fi
+        $CLANG_FOUND || { echo "No clang toolchain found"; exit 1; }
+        echo "CLANG_BIN_PATH=$CLANG_BIN" >> "$GITHUB_PATH"
+        CLANG_VERSION="$("$CLANG_BIN/clang" --version | head -n1)"
+        echo "CLANG_VERSION=$CLANG_VERSION" >> "$GITHUB_ENV"
+        echo "[NOTICE] Using clang : $CLANG_VERSION"
+
+        echo "Clang detected ✅"
+        echo "::endgroup::"
