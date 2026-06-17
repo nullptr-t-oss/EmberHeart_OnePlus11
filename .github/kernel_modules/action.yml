@@ -290,15 +290,6 @@ runs:
           export PATH="$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin:$PATH"
         fi
 
-        if [ "${{ inputs.optimize_level }}" = "O3" ]; then
-          KCFLAGS_EXTRA="-O3"
-        else
-          KCFLAGS_EXTRA="-O2"
-        fi
-
-        # Consistent flags; include -pipe
-        KCFLAGS="-pipe ${KCFLAGS_EXTRA}"
-
         if [ "${{ inputs.lto }}" = "Thin" ]; then 
           echo '#!/bin/bash' > ld-wrapper
           echo 'ld.lld "$@" --thinlto-cache-dir=$LDCACHE_DIR --thinlto-jobs=$(nproc --all)' >> ld-wrapper
@@ -318,22 +309,13 @@ runs:
           LLVM=1
           LLVM_IAS=1
           ARCH=arm64
-          SUBARCH=arm64
           CROSS_COMPILE="aarch64-linux-gnu-"
           LD="${LD}"
-          HOSTLD=ld.lld
-          AR=llvm-ar
-          NM=llvm-nm
-          OBJCOPY=llvm-objcopy
-          OBJDUMP=llvm-objdump
-          DEPMOD=depmod
           DTC="${DTC}"
           DTC_FLAGS="-@"
-          STRIP=llvm-strip
           HOSTCC="ccache clang"
           HOSTCXX="ccache clang++"
           CC="ccache clang"
-          KCFLAGS="$KCFLAGS"
         )
 
         if [[ "$BUILD_TYPE" == "Mixed Build" || "$BUILD_TYPE" == "Modules Only" ]]; then

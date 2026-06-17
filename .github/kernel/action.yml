@@ -896,14 +896,11 @@ runs:
         # Ensure Python warnings are suppressed for scripts invoked by make
         export PYTHONWARNINGS="${PYTHONWARNINGS}"
 
-        if [ "${{ inputs.optimize_level }}" = "O3" ]; then
-          KCFLAGS_EXTRA="-O3"
+        if [ -d "$KERNEL_PLATFORM/build/build-tools/path" ]; then
+          export PATH="$KERNEL_PLATFORM/build/build-tools/path/linux-x86:$PATH"
         else
-          KCFLAGS_EXTRA="-O2"
+          export PATH="$KERNEL_PLATFORM/prebuilts/kernel-build-tools/linux-x86/bin:$PATH"
         fi
-
-        # Consistent flags; include -pipe and disable stack protector
-        KCFLAGS="-pipe ${KCFLAGS_EXTRA}"
 
         if [ "${{ inputs.lto }}" = "Thin" ]; then 
           echo '#!/bin/bash' > ld-wrapper
@@ -924,22 +921,13 @@ runs:
           LLVM=1
           LLVM_IAS=1
           ARCH=arm64
-          SUBARCH=arm64
           CROSS_COMPILE="aarch64-linux-gnu-"
           LD="${LD}"
-          HOSTLD=ld.lld
-          AR=llvm-ar
-          NM=llvm-nm
-          OBJCOPY=llvm-objcopy
-          OBJDUMP=llvm-objdump
-          DEPMOD=depmod
           DTC="${DTC}"
           DTC_FLAGS="-@"
-          STRIP=llvm-strip
           HOSTCC="ccache clang"
           HOSTCXX="ccache clang++"
           CC="ccache clang"
-          KCFLAGS="$KCFLAGS"
         )
 
         OUT=out
