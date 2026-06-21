@@ -354,7 +354,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        echo "CLANG=${{ inputs.clang_version }}" >> "$GITHUB_ENV""
+        echo "CLANG=${{ inputs.clang_version }}" >> "$GITHUB_ENV"
 
 
     - name: Download Clang (toolchain for build)
