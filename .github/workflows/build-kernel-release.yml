@@ -119,6 +119,7 @@ on:
         options:
           - OP11
           - OP11_LOS
+          - OP12
           - POCO_F6_LOS
         default: OP11
 
